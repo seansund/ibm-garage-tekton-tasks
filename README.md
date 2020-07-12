@@ -9,10 +9,18 @@ steps will get the tasks installed in your cluster. **Note:** These instructions
 logged into the cluster.
 
 1. Look through the releases and select the one that should be installed - https://github.com/IBM/ibm-garage-tekton-tasks/releases
-2. From the command-line, run the following (substituting the `RELEASE` and `NAMESPACE` values as appropriate):
+2. From the command-line, run the following to install the latest (substituting the `NAMESPACE` value appropriate):
     ```bash
-    export RELEASE="1.21.0"
     export NAMESPACE="tools"
+    export RELEASE=$(curl -s https://api.github.com/repos/ibm/ibm-garage-tekton-tasks/releases/latest | jq -r .tag_name)
+    kubectl apply -n ${NAMESPACE} -f https://github.com/IBM/ibm-garage-tekton-tasks/releases/download/${RELEASE}/release.yaml
+    ```
+
+    **Note:** If you don't have `jq` installed you run the following instead:
+    
+    ```shell script
+    export NAMESPACE="tools"
+    export RELEASE=$(curl -s https://api.github.com/repos/ibm/ibm-garage-tekton-tasks/releases/latest | grep tag_name | sed -E "s/.*\"tag_name\": \"(.*)\".*/\1/")
     kubectl apply -n ${NAMESPACE} -f https://github.com/IBM/ibm-garage-tekton-tasks/releases/download/${RELEASE}/release.yaml
     ```
 
