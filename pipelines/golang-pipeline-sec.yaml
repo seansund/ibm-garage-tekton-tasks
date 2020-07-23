@@ -1,0 +1,99 @@
+apiVersion: tekton.dev/v1alpha1
+kind: Pipeline
+metadata:
+  name: igc-golang-sec
+  annotations:
+    description: Pipeline to build a golang application and push the changes to a GitOps repository
+  labels:
+    version: 0.0.0
+spec:
+  params:
+    - name: repo-url
+    - name: revision
+      default: master
+    - name: image
+    - name: image-tag
+      default: latest
+  tasks:
+    - name: test
+      taskRef:
+        name: igc-golang-test
+      params:
+        - name: image
+          value: $(params.image):$(params.image-tag)
+        - name: repo-url
+          value: $(params.repo-url)
+        - name: revision
+          value: $(params.revision)
+    - name: build
+      taskRef:
+        name: igc-build-tag-push
+      runAfter:
+       - test
+      params:
+        - name: image
+          value: $(params.image):$(params.image-tag)
+        - name: repo-url
+          value: $(params.repo-url)
+        - name: revision
+          value: $(params.revision)
+    - name: scan
+      taskRef:
+        name: igc-img-scan-ibm
+      runAfter:
+        - build
+      params:
+        - name: image
+          value: $(params.image):$(params.image-tag)
+        - name: repo-url
+          value: $(params.repo-url)
+        - name: revision
+          value: $(params.revision)
+    - name: deploy
+      taskRef:
+        name: igc-deploy
+      runAfter:
+       - scan
+      params:
+        - name: image
+          value: $(params.image):$(params.image-tag)
+        - name: repo-url
+          value: $(params.repo-url)
+        - name: revision
+          value: $(params.revision)
+    - name: health
+      taskRef:
+        name: igc-health-check
+      runAfter:
+       - deploy
+      params:
+        - name: image
+          value: $(params.image):$(params.image-tag)
+        - name: repo-url
+          value: $(params.repo-url)
+        - name: revision
+          value: $(params.revision)
+    - name: release
+      taskRef:
+        name: igc-helm-package
+      runAfter:
+       - health
+      params:
+        - name: image
+          value: $(params.image):$(params.image-tag)
+        - name: repo-url
+          value: $(params.repo-url)
+        - name: revision
+          value: $(params.revision)
+    - name: gitops
+      taskRef:
+        name: igc-gitops
+      runAfter:
+       - release
+      params:
+        - name: image
+          value: $(params.image):$(params.image-tag)
+        - name: repo-url
+          value: $(params.repo-url)
+        - name: revision
+          value: $(params.revision)
