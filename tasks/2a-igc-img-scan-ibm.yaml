@@ -5,23 +5,48 @@ metadata:
   labels:
     version: 0.0.0 
 spec:
-  inputs:
-    params:
-      - default: 'docker.io/node:12-stretch'
-        name: js-image
-        type: string
-      - default: 'docker.io/garagecatalyst/ibmcloud-dev:1.0.10'
-        name: tools-image
-        type: string
-    resources:
-      - name: source
-        type: git
-  outputs:
-    resources:
-      - name: image
-        type: image
+  params:
+    - name: repo-url
+      description: The git repository url
+    - name: revision
+      description: The branch, tag, or git reference from the git repo-url location
+      default: master
+    - name: source-dir
+      type: string
+      default: /source
+    - name: image
+      description: "The location where to push the image in the form of <server>/<namespace>/<repository>:<tag>"
+    - default: 'docker.io/node:12-stretch'
+      name: js-image
+      type: string
+    - default: 'docker.io/garagecatalyst/ibmcloud-dev:1.0.10'
+      name: tools-image
+      type: string
+  results:
+    - name: image
+      description: The url of the image to be pushed
+  volumes:
+    - name: source
+      emptyDir: {}
   steps:
-    - args:
+    - name: Git clone
+      image: alpine/git
+      command: ["/bin/bash"]
+      args:
+        - -c
+        - |
+          git clone $(params.repo-url) $(params.source-dir)
+          cd $(params.source-dir)
+          git checkout $(params.revision)
+      volumeMounts:
+        - name: source
+          mountPath: $(params.source-dir)
+    - name: setup
+      image: $(params.js-image)
+      workingDir: $(params.source-dir)
+      command:
+        - /bin/bash
+      args:
         - '-c'
         - >
           set -x 
@@ -56,13 +81,35 @@ spec:
               echo "Error: IMAGE_NAME not defined"
               exit 1
           fi
+      volumeMounts:
+        - name: source
+          mountPath: $(params.source-dir)
+    - name: va-scan
+      image: $(params.tools-image)
+      workingDir: $(params.source-dir)
       command:
         - /bin/bash
-      image: $(inputs.params.js-image)
-      name: setup
-      resources: {}
-      workingDir: $(inputs.resources.source.path)
-    - args:
+      env:
+        - name: HOME
+          value: /home/devops
+        - name: REGISTRY_USER
+          valueFrom:
+            secretKeyRef:
+              key: REGISTRY_USER
+              name: ibmcloud-apikey
+              optional: true
+        - name: REGISTRY_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: APIKEY
+              name: ibmcloud-apikey
+              optional: true
+      envFrom:
+        - configMapRef:
+            name: ibmcloud-config
+        - secretRef:
+            name: ibmcloud-apikey
+      args:
         - '-c'
         - >
           set -e 
@@ -71,7 +118,7 @@ spec:
 
           echo "REGISTRYURL + ${REGISTRY_URL}" 
 
-          IMAGE_URL=$(outputs.resources.image.url) 
+          IMAGE_URL=$(params.image)
 
           echo ${IMAGE_URL}
 
@@ -109,29 +156,8 @@ spec:
             echo "VA - Issues in the image"
             ibmcloud cr va ${URL} --output json
           fi
-      command:
-        - /bin/bash
-      env:
-        - name: HOME
-          value: /home/devops
-        - name: REGISTRY_USER
-          valueFrom:
-            secretKeyRef:
-              key: REGISTRY_USER
-              name: ibmcloud-apikey
-              optional: true
-        - name: REGISTRY_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              key: APIKEY
-              name: ibmcloud-apikey
-              optional: true
-      envFrom:
-        - configMapRef:
-            name: ibmcloud-config
-        - secretRef:
-            name: ibmcloud-apikey
-      image: $(inputs.params.tools-image)
-      name: va-scan
-      resources: {}
-      workingDir: $(inputs.resources.source.path)
+
+          echo -n "${URL}" | tee $(results.image.path)
+      volumeMounts:
+        - name: source
+          mountPath: $(params.source-dir)

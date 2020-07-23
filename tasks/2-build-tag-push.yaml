@@ -157,7 +157,7 @@ spec:
           fi
           buildah push --tls-verify=$(params.TLSVERIFY) "${APP_IMAGE}" "docker://${APP_IMAGE}"
 
-          echo -n "${BASE_IMAGE}" | tee $(results.image.path)
+          echo -n "${APP_IMAGE}" | tee $(results.image.path)
       env:
         - name: REGISTRY_USER
           valueFrom:
