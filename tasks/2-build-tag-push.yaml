@@ -5,36 +5,55 @@ metadata:
   labels:
     version: 0.0.0
 spec:
-  inputs:
-    resources:
-      - name: source
-        type: git
-    params:
-      - name: js-image
-        default: docker.io/node:12-stretch
-      - name: BUILDER_IMAGE
-        default: quay.io/buildah/stable:v1.11.0
-      - name: DOCKERFILE
-        default: ./Dockerfile
-      - name: CONTEXT
-        default: .
-      - name: TLSVERIFY
-        default: "false"
-  outputs:
-    resources:
-      - name: image
-        type: image
+  params:
+    - name: repo-url
+      description: The git repository url
+    - name: revision
+      description: The branch, tag, or git reference from the git repo-url location
+      default: master
+    - name: source-dir
+      type: string
+      default: /source
+    - name: image
+      description: "The location where to push the image in the form of <server>/<namespace>/<repository>:<tag>"
+    - name: js-image
+      default: docker.io/node:12-stretch
+    - name: BUILDER_IMAGE
+      default: quay.io/buildah/stable:v1.11.0
+    - name: DOCKERFILE
+      default: ./Dockerfile
+    - name: CONTEXT
+      default: .
+    - name: TLSVERIFY
+      default: "false"
+  results:
+    - name: image
+      description: The url of the image to be pushed
   volumes:
     - name: varlibcontainers
       emptyDir: {}
+    - name: source
+      emptyDir: {}
   steps:
+    - name: Git clone
+      image: alpine/git
+      command: ["/bin/bash"]
+      args:
+        - -c
+        - |
+          git clone $(params.repo-url) $(params.source-dir)
+          cd $(params.source-dir)
+          git checkout $(params.revision)
+      volumeMounts:
+        - name: source
+          mountPath: $(params.source-dir)
     - name: tag-release
-      image: $(inputs.params.js-image)
-      workingdir: $(inputs.resources.source.path)
+      image: $(params.js-image)
+      workingdir: $(params.source-dir)
       command: ["/bin/bash"]
       env:
         - name: BRANCH
-          value: "$(inputs.resources.source.revision)"
+          value: $(params.revision)
         - name: GIT_AUTH_USER
           valueFrom:
             secretKeyRef:
@@ -110,9 +129,12 @@ spec:
               echo "Error: IMAGE_NAME not defined"
               exit 1
           fi
+      volumeMounts:
+        - name: source
+          mountPath: $(params.source-dir)
     - name: build
-      image: $(inputs.params.BUILDER_IMAGE)
-      workingdir: $(inputs.resources.source.path)
+      image: $(params.BUILDER_IMAGE)
+      workingdir: $(params.source-dir)
       command: ["/bin/bash"]
       args:
         - -c
@@ -121,18 +143,21 @@ spec:
 
           . ./env-config
 
-          IMAGE_URL=$(outputs.resources.image.url)
+          IMAGE_URL=$(params.image)
 
           REGISTRY_URL=$(echo $IMAGE_URL | awk -F / '{print $1}')
           REGISTRY_NAMESPACE=$(echo $IMAGE_URL | awk -F / '{print $2}')
 
-          APP_IMAGE="${REGISTRY_URL}/${REGISTRY_NAMESPACE}/${IMAGE_NAME}:${IMAGE_VERSION}"
+          BASE_IMAGE="${REGISTRY_URL}/${REGISTRY_NAMESPACE}/${IMAGE_NAME}"
+          APP_IMAGE="${BASE_IMAGE}:${IMAGE_VERSION}"
 
-          buildah bud --tls-verify=$(inputs.params.TLSVERIFY) --format=docker -f $(inputs.params.DOCKERFILE) -t ${APP_IMAGE}  $(inputs.params.CONTEXT)
+          buildah bud --tls-verify=$(params.TLSVERIFY) --format=docker -f $(params.DOCKERFILE) -t ${APP_IMAGE}  $(params.CONTEXT)
           if [[ -n "${REGISTRY_USER}" ]] && [[ -n "${REGISTRY_PASSWORD}" ]]; then
             buildah login -u "${REGISTRY_USER}" -p "${REGISTRY_PASSWORD}" "${REGISTRY_URL}"
           fi
-          buildah push --tls-verify=$(inputs.params.TLSVERIFY) "${APP_IMAGE}" "docker://${APP_IMAGE}"
+          buildah push --tls-verify=$(params.TLSVERIFY) "${APP_IMAGE}" "docker://${APP_IMAGE}"
+
+          echo -n "${BASE_IMAGE}" | tee $(results.image.path)
       env:
         - name: REGISTRY_USER
           valueFrom:
@@ -149,5 +174,7 @@ spec:
       volumeMounts:
         - mountPath: /var/lib/containers
           name: varlibcontainers
+        - name: source
+          mountPath: $(params.source-dir)
       securityContext:
         privileged: true

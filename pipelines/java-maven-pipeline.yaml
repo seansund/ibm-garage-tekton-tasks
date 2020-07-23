@@ -5,72 +5,81 @@ metadata:
   labels:
     version: 0.0.0
 spec:
-  resources:
-    - name: git-source
-      type: git
-    - name: docker-image
-      type: image
+  params:
+    - name: repo-url
+    - name: revision
+      default: master
+    - name: image
+    - name: image-tag
+      default: latest
   tasks:
     - name: test
       taskRef:
         name: igc-java-maven-test
-      resources:
-        inputs:
-          - name: source
-            resource: git-source
+      params:
+        - name: image
+          value: $(params.image):$(params.image-tag)
+        - name: repo-url
+          value: $(params.repo-url)
+        - name: revision
+          value: $(params.revision)
     - name: build
       taskRef:
         name: igc-build-tag-push
       runAfter:
        - test
-      resources:
-        inputs:
-          - name: source
-            resource: git-source
-        outputs:
-          - name: image
-            resource: docker-image
+      params:
+        - name: image
+          value: $(params.image):$(params.image-tag)
+        - name: repo-url
+          value: $(params.repo-url)
+        - name: revision
+          value: $(params.revision)
     - name: deploy
       taskRef:
         name: igc-deploy
       runAfter:
        - build
-      resources:
-        inputs:
-          - name: source
-            resource: git-source
-          - name: image
-            resource: docker-image
+      params:
+        - name: image
+          value: $(params.image):$(params.image-tag)
+        - name: repo-url
+          value: $(params.repo-url)
+        - name: revision
+          value: $(params.revision)
     - name: health
       taskRef:
         name: igc-health-check
       runAfter:
        - deploy
-      resources:
-        inputs:
-          - name: source
-            resource: git-source
-          - name: image
-            resource: docker-image
+      params:
+        - name: image
+          value: $(params.image):$(params.image-tag)
+        - name: repo-url
+          value: $(params.repo-url)
+        - name: revision
+          value: $(params.revision)
     - name: package
       taskRef:
         name: igc-helm-package
       runAfter:
        - health
-      resources:
-        inputs:
-          - name: source
-            resource: git-source
-          - name: image
-            resource: docker-image
+      params:
+        - name: image
+          value: $(params.image):$(params.image-tag)
+        - name: repo-url
+          value: $(params.repo-url)
+        - name: revision
+          value: $(params.revision)
     - name: gitops
       taskRef:
         name: igc-gitops
       runAfter:
        - package
-      resources:
-        inputs:
-          - name: source
-            resource: git-source
-          - name: image
-            resource: docker-image
+      params:
+        - name: image
+          value: $(params.image):$(params.image-tag)
+        - name: repo-url
+          value: $(params.repo-url)
+        - name: revision
+          value: $(params.revision)

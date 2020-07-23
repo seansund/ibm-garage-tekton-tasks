@@ -7,44 +7,69 @@ metadata:
   labels:
     version: 0.0.0
 spec:
-  inputs:
-    resources:
-      - name: source
-        type: git
-    params:
-      - name: golang-image
-        type: string
-        default: golang:stretch
-      - name: sonarqube-cli
-        type: string
-        default: sonarsource/sonar-scanner-cli
+  params:
+    - name: repo-url
+      description: The git repository url
+    - name: revision
+      description: The branch, tag, or git reference from the git repo-url location
+      default: master
+    - name: source-dir
+      type: string
+      default: /source
+    - name: golang-image
+      type: string
+      default: golang:stretch
+    - name: sonarqube-cli
+      type: string
+      default: sonarsource/sonar-scanner-cli
+  volumes:
+    - name: source
+      emptyDir: {}
   stepTemplate:
     envFrom:
       - configMapRef:
           name: pactbroker-config
           optional: true
   steps:
+    - name: Git clone
+      image: alpine/git
+      command: ["/bin/bash"]
+      args:
+        - -c
+        - |
+          git clone $(params.repo-url) $(params.source-dir)
+          cd $(params.source-dir)
+          git checkout $(params.revision)
+      volumeMounts:
+        - name: source
+          mountPath: $(params.source-dir)
     - name: build
-      image: $(inputs.params.golang-image)
-      workingdir: $(inputs.resources.source.path)
+      image: $(params.golang-image)
+      workingdir: $(params.revision)
       command: ["/bin/bash"]
       args:
         - -c
         - |
           set -e
           go build ./...
+      volumeMounts:
+        - name: source
+          mountPath: $(params.source-dir)
     - name: test
-      image: $(inputs.params.golang-image)
-      workingdir: $(inputs.resources.source.path)
+      image: $(params.golang-image)
+      workingdir: $(params.revision)
       command: ["/bin/bash"]
       args:
         - -c
         - |
           set -e
           go test ./...
+      volumeMounts:
+        - name: source
+          mountPath: $(params.source-dir)
     - name: sonar-scan
-      image: $(inputs.params.sonarqube-cli)
-      workingdir: $(inputs.resources.source.path)
+      image: $(params.sonarqube-cli)
+      workingdir: $(params.revision)
       envFrom:
         - configMapRef:
             name: sonarqube-config
@@ -54,7 +79,7 @@ spec:
             optional: true
       env:
         - name: SONAR_USER_HOME
-          value: $(inputs.resources.source.path)
+          value: $(params.revision)
       command: ["/bin/bash"]
       args:
         - -c
@@ -77,3 +102,6 @@ spec:
           else
               echo "Skipping Sonar Qube step for now but include"
           fi
+      volumeMounts:
+        - name: source
+          mountPath: $(params.source-dir)

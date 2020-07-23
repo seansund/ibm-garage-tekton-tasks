@@ -5,27 +5,44 @@ metadata:
   labels:
     version: 0.0.0
 spec:
-  inputs:
-    resources:
-      - name: source
-        type: git
-      - name: image
-        type: image
-    params:
-      - name: js-image
-        type: string
-        default: docker.io/node:12-stretch
-      - name: tools-image
-        type: string
-        default: garagecatalyst/ibmcloud-dev:1.0.10
+  params:
+    - name: repo-url
+      description: The git repository url
+    - name: revision
+      description: The branch, tag, or git reference from the git repo-url location
+      default: master
+    - name: source-dir
+      type: string
+      default: /source
+    - name: js-image
+      type: string
+      default: docker.io/node:12-stretch
+    - name: tools-image
+      type: string
+      default: garagecatalyst/ibmcloud-dev:1.0.10
+  volumes:
+    - name: source
+      emptyDir: {}
   steps:
+    - name: Git clone
+      image: alpine/git
+      command: ["/bin/bash"]
+      args:
+        - -c
+        - |
+          git clone $(params.repo-url) $(params.source-dir)
+          cd $(params.source-dir)
+          git checkout $(params.revision)
+      volumeMounts:
+        - name: source
+          mountPath: $(params.source-dir)
     - name: setup
-      image: $(inputs.params.js-image)
-      workingdir: $(inputs.resources.source.path)
+      image: $(params.js-image)
+      workingdir: $(params.source-dir)
       command: ["/bin/bash"]
       env:
         - name: BRANCH
-          value: "$(inputs.resources.source.revision)"
+          value: $(params.revision)
       args:
         - -c
         - |
@@ -42,9 +59,12 @@ spec:
           echo "IMAGE_NAME=$(basename -s .git `git config --get remote.origin.url` | tr '[:upper:]' '[:lower:]' | sed 's/_/-/g')" >> ./env-config
 
           cat ./env-config
+      volumeMounts:
+        - name: source
+          mountPath: $(params.source-dir)
     - name: gitops
-      image: $(inputs.params.tools-image)
-      workingdir: $(inputs.resources.source.path)
+      image: $(params.tools-image)
+      workingdir: $(params.source-dir)
       env:
         - name: HOME
           value: /home/devops
@@ -118,3 +138,6 @@ spec:
           git add -u
           git commit -m "Updates ${IMAGE_NAME} to ${IMAGE_VERSION}"
           git push -v
+      volumeMounts:
+        - name: source
+          mountPath: $(params.source-dir)

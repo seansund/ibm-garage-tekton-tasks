@@ -5,32 +5,51 @@ metadata:
   labels:
     version: 0.0.0
 spec:
-  inputs:
-    resources:
-      - name: source
-        type: git
-    params:
-      - name: gradle-image
-        type: string
-        default: gradle:jdk11
-      - name: tools-image
-        type: string
-        default: garagecatalyst/ibmcloud-dev:1.0.10
+  params:
+    - name: repo-url
+      description: The git repository url
+    - name: revision
+      description: The branch, tag, or git reference from the git repo-url location
+      default: master
+    - name: source-dir
+      type: string
+      default: /source
+    - name: gradle-image
+      type: string
+      default: gradle:jdk11
+    - name: tools-image
+      type: string
+      default: garagecatalyst/ibmcloud-dev:1.0.10
+  volumes:
+    - name: source
+      emptyDir: {}
   stepTemplate:
     env:
       - name: GRADLE_USER_HOME
-        value: $(inputs.resources.source.path)
+        value: $(params.source-dir)
   steps:
+    - name: Git clone
+      image: alpine/git
+      command: ["/bin/bash"]
+      args:
+        - -c
+        - |
+          git clone $(params.repo-url) $(params.source-dir)
+          cd $(params.source-dir)
+          git checkout $(params.revision)
+      volumeMounts:
+        - name: source
+          mountPath: $(params.source-dir)
     - name: setup
-      image: $(inputs.params.tools-image)
-      workingdir: $(inputs.resources.source.path)
+      image: $(params.tools-image)
+      workingdir: $(params.source-dir)
       env:
         - name: NAMESPACE
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
         - name: BRANCH
-          value: "$(inputs.resources.source.revision)"
+          value: $(params.revision)
       envFrom:
         - configMapRef:
             name: ibmcloud-config
@@ -65,9 +84,12 @@ spec:
           echo "PROTOCOL=${PROTOCOL}" >> ./env-config
 
           chmod a+w ./env-config
+      volumeMounts:
+        - name: source
+          mountPath: $(params.source-dir)
     - name: pact-verify
-      image: $(inputs.params.gradle-image)
-      workingdir: $(inputs.resources.source.path)
+      image: $(params.gradle-image)
+      workingdir: $(params.source-dir)
       command: ["/bin/bash"]
       envFrom:
         - configMapRef:
@@ -101,3 +123,6 @@ spec:
             -PpactHost=${HOST} \
             -PpactPort=${PORT} \
             -Ppact.verifier.publishResults=true
+      volumeMounts:
+        - name: source
+          mountPath: $(params.source-dir)

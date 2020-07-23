@@ -5,23 +5,44 @@ metadata:
   labels:
     version: 0.0.0
 spec:
-  inputs:
-    resources:
-      - name: source
-        type: git
-    params:
-      - name: js-image
-        type: string
-        default: node:12-stretch
+  params:
+    - name: repo-url
+      description: The git repository url
+    - name: revision
+      description: The branch, tag, or git reference from the git repo-url location
+      default: master
+    - name: source-dir
+      type: string
+      default: /source
+    - name: image
+      description: "The location where to push the image in the form of <server>/<namespace>/<repository>:<tag>"
+    - name: js-image
+      type: string
+      default: node:12-stretch
+  volumes:
+    - name: source
+      emptyDir: {}
   stepTemplate:
     envFrom:
       - configMapRef:
           name: pactbroker-config
           optional: true
   steps:
+    - name: Git clone
+      image: alpine/git
+      command: ["/bin/bash"]
+      args:
+        - -c
+        - |
+          git clone $(params.repo-url) $(params.source-dir)
+          cd $(params.source-dir)
+          git checkout $(params.revision)
+      volumeMounts:
+        - name: source
+          mountPath: $(params.source-dir)
     - name: build
-      image: $(inputs.params.js-image)
-      workingdir: $(inputs.resources.source.path)
+      image: $(params.js-image)
+      workingdir: $(params.source-dir)
       command: ["/bin/bash"]
       args:
         - -c
@@ -34,18 +55,24 @@ spec:
             popd
           fi
           npm run build --if-present
+      volumeMounts:
+        - name: source
+          mountPath: $(params.source-dir)
     - name: test
-      image: $(inputs.params.js-image)
-      workingdir: $(inputs.resources.source.path)
+      image: $(params.js-image)
+      workingdir: $(params.source-dir)
       command: ["/bin/bash"]
       args:
         - -c
         - |
           set -e
           CI=true npm test
+      volumeMounts:
+        - name: source
+          mountPath: $(params.source-dir)
     - name: publish-pact
-      image: $(inputs.params.js-image)
-      workingdir: $(inputs.resources.source.path)
+      image: $(params.js-image)
+      workingdir: $(params.source-dir)
       command: ["/bin/bash"]
       args:
         - -c
@@ -56,9 +83,12 @@ spec:
           else 
               echo "Skipping Pact publish"
           fi
+      volumeMounts:
+        - name: source
+          mountPath: $(params.source-dir)
     - name: verify-pact
-      image: $(inputs.params.js-image)
-      workingdir: $(inputs.resources.source.path)
+      image: $(params.js-image)
+      workingdir: $(params.source-dir)
       command: ["/bin/bash"]
       args:
         - -c
@@ -69,9 +99,12 @@ spec:
           else 
               echo "Skipping Pact publish"
           fi
+      volumeMounts:
+        - name: source
+          mountPath: $(params.source-dir)
     - name: sonar-scan
-      image: $(inputs.params.js-image)
-      workingdir: $(inputs.resources.source.path)
+      image: $(params.js-image)
+      workingdir: $(params.source-dir)
       envFrom:
         - configMapRef:
             name: sonarqube-config
@@ -81,7 +114,7 @@ spec:
             optional: true
       env:
         - name: SONAR_USER_HOME
-          value: $(inputs.resources.source.path)
+          value: $(params.source-dir)
       command: ["/bin/bash"]
       args:
         - -c
@@ -92,3 +125,6 @@ spec:
           else 
               echo "Skipping Sonar Qube step"
           fi
+      volumeMounts:
+        - name: source
+          mountPath: $(params.source-dir)

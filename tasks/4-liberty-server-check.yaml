@@ -3,23 +3,40 @@ kind: Task
 metadata:
   name: igc-liberty-server-check
 spec:
-  inputs:
-    resources:
-      - name: source
-        type: git
-      - name: image
-        type: image
-    params:
-      - name: js-image
-        type: string
-        default: docker.io/node:12-stretch
-      - name: tools-image
-        type: string
-        default: garagecatalyst/ibmcloud-dev:1.0.10
+  params:
+    - name: repo-url
+      description: The git repository url
+    - name: revision
+      description: The branch, tag, or git reference from the git repo-url location
+      default: master
+    - name: source-dir
+      type: string
+      default: /source
+    - name: js-image
+      type: string
+      default: docker.io/node:12-stretch
+    - name: tools-image
+      type: string
+      default: garagecatalyst/ibmcloud-dev:1.0.10
+  volumes:
+    - name: source
+      emptyDir: {}
   steps:
+    - name: Git clone
+      image: alpine/git
+      command: ["/bin/bash"]
+      args:
+        - -c
+        - |
+          git clone $(params.repo-url) $(params.source-dir)
+          cd $(params.source-dir)
+          git checkout $(params.revision)
+      volumeMounts:
+        - name: source
+          mountPath: $(params.source-dir)
     - name: health-check
-      image: $(inputs.params.tools-image)
-      workingdir: $(inputs.resources.source.path)
+      image: $(params.tools-image)
+      workingdir: $(params.source-dir)
       env:
         - name: NAMESPACE
           valueFrom:
@@ -52,3 +69,6 @@ spec:
               echo "Could not reach Liberty Server endpoint: ${URL}"
               exit 1;
           fi;
+      volumeMounts:
+        - name: source
+          mountPath: $(params.source-dir)

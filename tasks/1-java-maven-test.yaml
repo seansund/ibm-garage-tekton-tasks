@@ -3,30 +3,55 @@ kind: Task
 metadata:
   name: igc-java-maven-test
 spec:
-  inputs:
-    resources:
-      - name: source
-        type: git
-    params:
-      - name: maven-image
-        type: string
-        default: maven:3.6.3-jdk-11-slim
+  params:
+    - name: repo-url
+      description: The git repository url
+    - name: revision
+      description: The branch, tag, or git reference from the git repo-url location
+      default: master
+    - name: source-dir
+      type: string
+      default: /source
+    - name: maven-image
+      type: string
+      default: maven:3.6.3-jdk-11-slim
+  volumes:
+    - name: source
+      emptyDir: {}
   steps:
+    - name: Git clone
+      image: alpine/git
+      command: ["/bin/bash"]
+      args:
+        - -c
+        - |
+          git clone $(params.repo-url) $(params.source-dir)
+          cd $(params.source-dir)
+          git checkout $(params.revision)
+      volumeMounts:
+        - name: source
+          mountPath: $(params.source-dir)
     - name: build
-      image: $(inputs.params.maven-image)
-      workingdir: $(inputs.resources.source.path)
+      image: $(params.maven-image)
+      workingdir: $(params.source-dir)
       command: ["/bin/bash"]
       args:
         - -c
         - |
           set -e
           mvn package
+      volumeMounts:
+        - name: source
+          mountPath: $(params.source-dir)
     - name: test
-      image: $(inputs.params.maven-image)
-      workingdir: $(inputs.resources.source.path)
+      image: $(params.maven-image)
+      workingdir: $(params.source-dir)
       command: ["/bin/bash"]
       args:
         - -c
         - |
           set -e
           mvn test
+      volumeMounts:
+        - name: source
+          mountPath: $(params.source-dir)

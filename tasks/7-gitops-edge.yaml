@@ -8,30 +8,46 @@ metadata:
     version: 0.0.0
 spec:
   volumes:
+    - name: source
+      emptyDir: {}
     - name: icp-ca
       secret:
         secretName: edge-access
         items:
           - key: HZN_CERTIFICATE
             path: icp-ca.crt
-  inputs:
-    resources:
-      - name: source
-        type: git
-      - name: image
-        type: image
-    params:
-      - name: tools-image
-        type: string
-        default: garagecatalyst/ibmcloud-dev:1.1.3
+  params:
+    - name: repo-url
+      description: The git repository url
+    - name: revision
+      description: The branch, tag, or git reference from the git repo-url location
+      default: master
+    - name: source-dir
+      type: string
+      default: /source
+    - name: tools-image
+      type: string
+      default: garagecatalyst/ibmcloud-dev:1.1.3
   steps:
+    - name: Git clone
+      image: alpine/git
+      command: ["/bin/bash"]
+      args:
+        - -c
+        - |
+          git clone $(params.repo-url) $(params.source-dir)
+          cd $(params.source-dir)
+          git checkout $(params.revision)
+      volumeMounts:
+        - name: source
+          mountPath: $(params.source-dir)
     - name: setup
-      image: $(inputs.params.tools-image)
-      workingdir: $(inputs.resources.source.path)
+      image: $(params.tools-image)
+      workingdir: $(params.source-dir)
       command: ["/bin/bash"]
       env:
         - name: BRANCH
-          value: "$(inputs.resources.source.revision)"
+          value: $(params.revision)
       args:
         - -c
         - |
@@ -48,10 +64,12 @@ spec:
           echo "IMAGE_NAME=$(basename -s .git `git config --get remote.origin.url` | tr '[:upper:]' '[:lower:]' | sed 's/_/-/g')" >> ./env-config
 
           cat ./env-config
-
+      volumeMounts:
+        - name: source
+          mountPath: $(params.source-dir)
     - name: gitops-edge
-      image: $(inputs.params.tools-image)
-      workingdir: $(inputs.resources.source.path)
+      image: $(params.tools-image)
+      workingdir: $(params.source-dir)
       securityContext:
         allowPrivilegeEscalation : true
       env:
@@ -70,6 +88,8 @@ spec:
       volumeMounts:
         - mountPath: /opt/certs
           name: icp-ca
+        - name: source
+          mountPath: $(params.source-dir)
       command: ["/bin/bash"]
       args:
         - -c

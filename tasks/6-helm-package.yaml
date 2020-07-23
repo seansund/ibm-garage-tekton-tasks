@@ -5,27 +5,46 @@ metadata:
   labels:
     version: 0.0.0
 spec:
-  inputs:
-    resources:
-      - name: source
-        type: git
-      - name: image
-        type: image
-    params:
-      - name: js-image
-        type: string
-        default: node:12-stretch
-      - name: tools-image
-        type: string
-        default: garagecatalyst/ibmcloud-dev:1.0.10
+  params:
+    - name: repo-url
+      description: The git repository url
+    - name: revision
+      description: The branch, tag, or git reference from the git repo-url location
+      default: master
+    - name: source-dir
+      type: string
+      default: /source
+    - name: image
+      description: "The location where to push the image in the form of <server>/<namespace>/<repository>:<tag>"
+    - name: js-image
+      type: string
+      default: node:12-stretch
+    - name: tools-image
+      type: string
+      default: garagecatalyst/ibmcloud-dev:1.0.10
+  volumes:
+    - name: source
+      emptyDir: {}
   steps:
+    - name: Git clone
+      image: alpine/git
+      command: ["/bin/bash"]
+      args:
+        - -c
+        - |
+          git clone $(params.repo-url) $(params.source-dir)
+          cd $(params.source-dir)
+          git checkout $(params.revision)
+      volumeMounts:
+        - name: source
+          mountPath: $(params.source-dir)
     - name: setup
-      image: $(inputs.params.js-image)
-      workingdir: $(inputs.resources.source.path)
+      image: $(params.js-image)
+      workingdir: $(params.source-dir)
       command: ["/bin/bash"]
       env:
         - name: BRANCH
-          value: "$(inputs.resources.source.revision)"
+          value: $(params.revision)
       args:
         - -c
         - |
@@ -43,16 +62,19 @@ spec:
           echo "REPO_URL=$(git config --get remote.origin.url)" >> ./env-config
 
           cat ./env-config
+      volumeMounts:
+        - name: source
+          mountPath: $(params.source-dir)
     - name: deploy
-      image: $(inputs.params.tools-image)
-      workingdir: $(inputs.resources.source.path)
+      image: $(params.tools-image)
+      workingdir: $(params.source-dir)
       env:
         - name: NAMESPACE
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
         - name: BRANCH
-          value: "$(inputs.resources.source.revision)"
+          value: $(params.revision)
       envFrom:
         - configMapRef:
             name: ibmcloud-config
@@ -66,7 +88,7 @@ spec:
 
           ENVIRONMENT_NAME="${NAMESPACE}"
 
-          IMAGE_URL=$(inputs.resources.image.url)
+          IMAGE_URL=$(params.image)
 
           REGISTRY_URL=$(echo $IMAGE_URL | awk -F / '{print $1}')
           REGISTRY_NAMESPACE=$(echo $IMAGE_URL | awk -F / '{print $2}')
@@ -134,10 +156,12 @@ spec:
 
           echo "CHECKING CHART (lint)"
           helm lint ${CHART_PATH}
-
+      volumeMounts:
+        - name: source
+          mountPath: $(params.source-dir)
     - name: helm-chart
-      image: $(inputs.params.tools-image)
-      workingdir: $(inputs.resources.source.path)
+      image: $(params.tools-image)
+      workingdir: $(params.source-dir)
       envFrom:
         - configMapRef:
             name: artifactory-config
@@ -153,7 +177,7 @@ spec:
             optional: true
       env:
         - name: BRANCH
-          value: "$(inputs.resources.source.revision)"
+          value: $(image.revision)
         - name: NAMESPACE
           valueFrom:
             fieldRef:
@@ -198,7 +222,7 @@ spec:
             fi
           fi
 
-          IMAGE_URL=$(inputs.resources.image.url)
+          IMAGE_URL=$(params.image)
 
           export CHART_ROOT=$(find . -name chart)
           echo "CHART_ROOT: $CHART_ROOT"
@@ -207,7 +231,7 @@ spec:
           echo "CHART_NAME: $CHART_NAME"
 
           CHART_PATH="${CHART_ROOT}/${CHART_NAME}"
-          IMAGE_URL=$(inputs.resources.image.url)
+          IMAGE_URL=$(params.image)
 
           REGISTRY_URL=$(echo $IMAGE_URL | awk -F / '{print $1}')
 
@@ -235,3 +259,6 @@ spec:
 
           # Persist the Helm Chart in the helm repo for us by ArgoCD
           curl -u${HELM_USER}:${HELM_PASSWORD} -i -vvv -T index.yaml "${HELM_URL}/${REGISTRY_NAMESPACE}/index.yaml"
+      volumeMounts:
+        - name: source
+          mountPath: $(params.source-dir)
