@@ -4,7 +4,7 @@ name: Release
 # events but only for the master branch
 on:
   push:
-    branches: [ master ]
+    branches: [ master, dev ]
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
@@ -15,6 +15,9 @@ jobs:
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       - uses: actions/checkout@v2
+        -
+      - name: Inject slug/short variables
+        uses: rlespinasse/github-slug-action@v2.x
 
       # Drafts your next Release notes as Pull Requests are merged into "master"
       - name: Create release
@@ -22,7 +25,8 @@ jobs:
         uses: release-drafter/release-drafter@v5
         with:
           # (Optional) specify config name to use, relative to .github/. Default: release-drafter.yml
-          config-name: release-drafter.yaml
+          config-name: release-drafter-${{ env.GITHUB_REF_SLUG }}.yaml
+          prerelease: ${{ env.GITHUB_REF_SLUG == "dev" }}
           publish: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
