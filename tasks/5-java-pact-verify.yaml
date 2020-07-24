@@ -7,10 +7,15 @@ metadata:
 spec:
   params:
     - name: repo-url
+      type: string
       description: The git repository url
     - name: revision
+      type: string
       description: The branch, tag, or git reference from the git repo-url location
       default: master
+    - name: image
+      type: string
+      description: "The location where to push the image in the form of <server>/<namespace>/<repository>:<tag>"
     - name: source-dir
       type: string
       default: /source

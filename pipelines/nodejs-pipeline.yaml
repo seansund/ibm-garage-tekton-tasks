@@ -7,10 +7,18 @@ metadata:
 spec:
   params:
     - name: repo-url
+      type: string
+      description: The url for the git repository
     - name: revision
+      description: The git revision (branch, sha, tag) that should be built
+      type: string
       default: master
     - name: image
+      description: The url for the resulting image
+      type: string
     - name: image-tag
+      description: The tag that should be given the build image
+      type: string
       default: latest
   tasks:
     - name: test
