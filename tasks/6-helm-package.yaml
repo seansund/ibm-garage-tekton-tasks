@@ -27,13 +27,16 @@ spec:
     - name: tools-image
       type: string
       default: garagecatalyst/ibmcloud-dev:1.0.10
+  results:
+    - name: image
+      description: The url of the image to be pushed
   volumes:
     - name: source
       emptyDir: {}
   steps:
-    - name: Git clone
+    - name: git-clone
       image: alpine/git
-      command: ["/bin/bash"]
+      command: ["/bin/sh"]
       args:
         - -c
         - |

@@ -50,7 +50,7 @@ spec:
        - build
       params:
         - name: image
-          value: $(params.image):$(params.image-tag)
+          value: $(tasks.build.results.image)
         - name: repo-url
           value: $(params.repo-url)
         - name: revision
@@ -62,7 +62,7 @@ spec:
        - deploy
       params:
         - name: image
-          value: $(params.image):$(params.image-tag)
+          value: $(tasks.build.results.image)
         - name: repo-url
           value: $(params.repo-url)
         - name: revision
@@ -74,7 +74,7 @@ spec:
        - health
       params:
         - name: image
-          value: $(params.image):$(params.image-tag)
+          value: $(tasks.build.results.image)
         - name: repo-url
           value: $(params.repo-url)
         - name: revision
@@ -86,7 +86,7 @@ spec:
        - release
       params:
         - name: image
-          value: $(params.image):$(params.image-tag)
+          value: $(tasks.release.results.image)
         - name: repo-url
           value: $(params.repo-url)
         - name: revision

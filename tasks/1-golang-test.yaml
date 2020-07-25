@@ -36,9 +36,9 @@ spec:
           name: pactbroker-config
           optional: true
   steps:
-    - name: Git clone
+    - name: git-clone
       image: alpine/git
-      command: ["/bin/bash"]
+      command: ["/bin/sh"]
       args:
         - -c
         - |
@@ -74,7 +74,7 @@ spec:
           mountPath: $(params.source-dir)
     - name: sonar-scan
       image: $(params.sonarqube-cli)
-      workingdir: $(params.revision)
+      workingdir: $(params.source-dir)
       envFrom:
         - configMapRef:
             name: sonarqube-config
@@ -99,7 +99,7 @@ spec:
 
           if [ -n "${SONARQUBE_URL}" ]; then
 
-            sonar-scanner \
+            sonar-scanner -X \
             -Dsonar.login=${SONARQUBE_USER} \
             -Dsonar.password=${SONARQUBE_PASSWORD} \
             -Dsonar.host.url=${SONARQUBE_URL}

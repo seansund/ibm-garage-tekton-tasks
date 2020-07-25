@@ -32,9 +32,9 @@ spec:
     - name: source
       emptyDir: {}
   steps:
-    - name: Git clone
+    - name: git-clone
       image: alpine/git
-      command: ["/bin/bash"]
+      command: ["/bin/sh"]
       args:
         - -c
         - |
