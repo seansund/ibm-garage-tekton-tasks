@@ -9,8 +9,8 @@ spec:
     - name: repo-url
       type: string
       description: The url for the git repository
-    - name: revision
-      description: The git revision (branch, sha, tag) that should be built
+    - name: branch
+      description: The git revision (branch, tag) that should be built
       type: string
       default: master
     - name: image
@@ -29,8 +29,10 @@ spec:
           value: $(params.image):$(params.image-tag)
         - name: repo-url
           value: $(params.repo-url)
+        - name: branch
+          value: $(params.branch)
         - name: revision
-          value: $(params.revision)
+          value: ""
     - name: build
       taskRef:
         name: igc-build-tag-push
@@ -41,8 +43,10 @@ spec:
           value: $(params.image):$(params.image-tag)
         - name: repo-url
           value: $(params.repo-url)
+        - name: branch
+          value: $(params.branch)
         - name: revision
-          value: $(params.revision)
+          value: $(tasks.test.results.revision)
     - name: deploy
       taskRef:
         name: igc-deploy
@@ -53,8 +57,10 @@ spec:
           value: $(tasks.build.results.image)
         - name: repo-url
           value: $(params.repo-url)
+        - name: branch
+          value: $(params.branch)
         - name: revision
-          value: $(params.revision)
+          value: $(tasks.test.results.revision)
     - name: health
       taskRef:
         name: igc-health-check
@@ -65,8 +71,10 @@ spec:
           value: $(tasks.build.results.image)
         - name: repo-url
           value: $(params.repo-url)
+        - name: branch
+          value: $(params.branch)
         - name: revision
-          value: $(params.revision)
+          value: $(tasks.test.results.revision)
     - name: release
       taskRef:
         name: igc-helm-package
@@ -77,8 +85,10 @@ spec:
           value: $(tasks.build.results.image)
         - name: repo-url
           value: $(params.repo-url)
+        - name: branch
+          value: $(params.branch)
         - name: revision
-          value: $(params.revision)
+          value: $(tasks.test.results.revision)
     - name: gitops
       taskRef:
         name: igc-gitops
@@ -89,5 +99,7 @@ spec:
           value: $(tasks.release.results.image)
         - name: repo-url
           value: $(params.repo-url)
+        - name: branch
+          value: $(params.branch)
         - name: revision
-          value: $(params.revision)
+          value: $(tasks.test.results.revision)

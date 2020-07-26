@@ -22,6 +22,9 @@ spec:
     - name: gradle-image
       type: string
       default: gradle:jdk11
+    - name: sonarqube-cli
+      type: string
+      default: sonarsource/sonar-scanner-cli
   volumes:
     - name: source
       emptyDir: {}
@@ -39,6 +42,7 @@ spec:
           git clone $(params.repo-url) $(params.source-dir)
           cd $(params.source-dir)
           git checkout $(params.revision)
+          echo "IMAGE_NAME=$(basename $(git rev-parse --show-toplevel))" >> ./.env-config
       volumeMounts:
         - name: source
           mountPath: $(params.source-dir)
@@ -67,7 +71,7 @@ spec:
         - name: source
           mountPath: $(params.source-dir)
     - name: sonar-scan
-      image: $(params.gradle-image)
+      image: $(params.sonarqube-cli)
       workingdir: $(params.source-dir)
       envFrom:
         - configMapRef:
@@ -78,23 +82,31 @@ spec:
             optional: true
       env:
         - name: SONAR_USER_HOME
-          value: $(params.source-dir)
+          value: $(params.revision)
       command: ["/bin/bash"]
       args:
         - -c
         - |
           set -e
-          if $(./gradlew tasks --all | grep -Eq "^sonarqube"); then
-              echo "SonarQube task found"
-          else
+
+          . ./.env-config
+
+          if ! command -v sonar-scanner &> /dev/null
+          then
               echo "Skipping SonarQube step, no task defined"
               exit 0
           fi
 
-          if [[ -n "${SONARQUBE_URL}" ]] && [[ -n "${SONARQUBE_USER}" ]] && [[ -n "${SONARQUBE_PASSWORD}" ]]; then
-              ./gradlew -Dsonar.login=${SONARQUBE_USER} -Dsonar.password=${SONARQUBE_PASSWORD} -Dsonar.host.url=${SONARQUBE_URL} sonarqube
-          else 
-              echo "Skipping SonarQube step, configuration not provided"
+          if [ -n "${SONARQUBE_URL}" ]; then
+
+            sonar-scanner -X \
+            -Dsonar.login=${SONARQUBE_USER} \
+            -Dsonar.password=${SONARQUBE_PASSWORD} \
+            -Dsonar.host.url=${SONARQUBE_URL} \
+            -Dsonar.projectKey=${IMAGE_NAME}
+
+          else
+              echo "Skipping Sonar Qube step for now but include"
           fi
       volumeMounts:
         - name: source

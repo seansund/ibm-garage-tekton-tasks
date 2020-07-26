@@ -20,6 +20,9 @@ spec:
     - name: maven-image
       type: string
       default: maven:3.6.3-jdk-11-slim
+    - name: sonarqube-cli
+      type: string
+      default: sonarsource/sonar-scanner-cli
   volumes:
     - name: source
       emptyDir: {}
@@ -33,6 +36,7 @@ spec:
           git clone $(params.repo-url) $(params.source-dir)
           cd $(params.source-dir)
           git checkout $(params.revision)
+          echo "IMAGE_NAME=$(basename $(git rev-parse --show-toplevel))" >> ./.env-config
       volumeMounts:
         - name: source
           mountPath: $(params.source-dir)
@@ -57,6 +61,47 @@ spec:
         - |
           set -e
           mvn test
+      volumeMounts:
+        - name: source
+          mountPath: $(params.source-dir)
+    - name: sonar-scan
+      image: $(params.sonarqube-cli)
+      workingdir: $(params.source-dir)
+      envFrom:
+        - configMapRef:
+            name: sonarqube-config
+            optional: true
+        - secretRef:
+            name: sonarqube-access
+            optional: true
+      env:
+        - name: SONAR_USER_HOME
+          value: $(params.revision)
+      command: ["/bin/bash"]
+      args:
+        - -c
+        - |
+          set -e
+
+          . ./.env-config
+
+          if ! command -v sonar-scanner &> /dev/null
+          then
+              echo "Skipping SonarQube step, no task defined"
+              exit 0
+          fi
+
+          if [ -n "${SONARQUBE_URL}" ]; then
+
+            sonar-scanner -X \
+            -Dsonar.login=${SONARQUBE_USER} \
+            -Dsonar.password=${SONARQUBE_PASSWORD} \
+            -Dsonar.host.url=${SONARQUBE_URL} \
+            -Dsonar.projectKey=${IMAGE_NAME}
+
+          else
+              echo "Skipping Sonar Qube step for now but include"
+          fi
       volumeMounts:
         - name: source
           mountPath: $(params.source-dir)

@@ -9,10 +9,13 @@ spec:
     - name: repo-url
       type: string
       description: The git repository url
-    - name: revision
+    - name: branch
       type: string
-      description: The branch, tag, or git reference from the git repo-url location
+      description: The branch or tag from the git repo-url location
       default: master
+    - name: revision
+      description: The git reference that was checked out
+      default: ""
     - name: image
       type: string
       description: "The location where to push the image in the form of <server>/<namespace>/<repository>:<tag>"
@@ -37,6 +40,8 @@ spec:
   results:
     - name: image
       description: The url of the image to be pushed
+    - name: revision
+      description: The git reference that was checked out
   volumes:
     - name: varlibcontainers
       emptyDir: {}
@@ -51,7 +56,20 @@ spec:
         - |
           git clone $(params.repo-url) $(params.source-dir)
           cd $(params.source-dir)
-          git checkout $(params.revision)
+          git checkout $(params.branch)
+
+          REVISION=$(params.revision)
+          if [ -z "${REVISION}" ]; then
+            REVISION=$(git rev-parse HEAD)
+          else
+            git reset --hard "${REVISION}"
+          fi
+
+          echo "REVISION: ${REVISION}"
+          echo -n "${REVISION}" | tee $(results.revision.path)
+
+          echo "IMAGE_NAME=$(basename $(git rev-parse --show-toplevel))" >> ./.env-config
+          echo "REVISION=${REVISION}" >> ./.env-config
       volumeMounts:
         - name: source
           mountPath: $(params.source-dir)
@@ -79,6 +97,8 @@ spec:
         - |
           set -e
 
+          . ./.env-config
+
           if [[ -z "$GIT_AUTH_USER" ]] || [[ -z "$GIT_AUTH_PWD" ]]; then
             echo "Git credentials not found. The pipeline expects to find them in a secret named 'git-credentials'."
             echo "  Update your CLI and register the pipeline again"
@@ -86,7 +106,6 @@ spec:
           fi
 
           echo "Current branch: $(git rev-parse --abbrev-ref HEAD)"
-          git fetch --unshallow
           git fetch --tags
           git tag -l
 
@@ -125,7 +144,7 @@ spec:
 
           git push --follow-tags -v
 
-          echo "IMAGE_VERSION=$(git describe --abbrev=0 --tags)" > ./env-config
+          echo "IMAGE_VERSION=$(git describe --abbrev=0 --tags)" >> ./env-config
           echo "IMAGE_NAME=$(basename -s .git `git config --get remote.origin.url` | tr '[:upper:]' '[:lower:]' | sed 's/_/-/g')" >> ./env-config
 
           source ./env-config

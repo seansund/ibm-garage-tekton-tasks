@@ -9,10 +9,13 @@ spec:
     - name: repo-url
       type: string
       description: The git repository url
-    - name: revision
+    - name: branch
       type: string
-      description: The branch, tag, or git reference from the git repo-url location
+      description: The branch or tag from the git repo-url location
       default: master
+    - name: revision
+      description: The git reference that was checked out
+      default: ""
     - name: image
       type: string
       description: "The location where to push the image in the form of <server>/<namespace>/<repository>:<tag>"
@@ -22,6 +25,12 @@ spec:
     - name: js-image
       type: string
       default: node:12-stretch
+    - name: sonarqube-cli
+      type: string
+      default: sonarsource/sonar-scanner-cli
+  results:
+    - name: revision
+      description: The git reference that was checked out
   volumes:
     - name: source
       emptyDir: {}
@@ -39,7 +48,20 @@ spec:
         - |
           git clone $(params.repo-url) $(params.source-dir)
           cd $(params.source-dir)
-          git checkout $(params.revision)
+          git checkout $(params.branch)
+
+          REVISION=$(params.revision)
+          if [ -z "${REVISION}" ]; then
+            REVISION=$(git rev-parse HEAD)
+          else
+            git reset --hard "${REVISION}"
+          fi
+
+          echo "REVISION: ${REVISION}"
+          echo -n "${REVISION}" | tee $(results.revision.path)
+
+          echo "IMAGE_NAME=$(basename $(git rev-parse --show-toplevel))" >> ./.env-config
+          echo "REVISION=${REVISION}" >> ./.env-config
       volumeMounts:
         - name: source
           mountPath: $(params.source-dir)
@@ -106,7 +128,7 @@ spec:
         - name: source
           mountPath: $(params.source-dir)
     - name: sonar-scan
-      image: $(params.js-image)
+      image: $(params.sonarqube-cli)
       workingdir: $(params.source-dir)
       envFrom:
         - configMapRef:
@@ -117,7 +139,7 @@ spec:
             optional: true
       env:
         - name: SONAR_USER_HOME
-          value: $(params.source-dir)
+          value: $(params.revision)
       command: ["/bin/bash"]
       args:
         - -c
@@ -125,7 +147,7 @@ spec:
           set -e
           if [ -n "${SONARQUBE_URL}" ]; then
               npm run sonarqube:scan --if-present
-          else 
+          else
               echo "Skipping Sonar Qube step"
           fi
       volumeMounts:

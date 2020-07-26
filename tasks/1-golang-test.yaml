@@ -45,6 +45,7 @@ spec:
           git clone $(params.repo-url) $(params.source-dir)
           cd $(params.source-dir)
           git checkout $(params.revision)
+          echo "IMAGE_NAME=$(basename $(git rev-parse --show-toplevel))" >> ./.env-config
       volumeMounts:
         - name: source
           mountPath: $(params.source-dir)
@@ -91,6 +92,8 @@ spec:
         - |
           set -e
 
+          . ./.env-config
+
           if ! command -v sonar-scanner &> /dev/null
           then
               echo "Skipping SonarQube step, no task defined"
@@ -102,7 +105,8 @@ spec:
             sonar-scanner -X \
             -Dsonar.login=${SONARQUBE_USER} \
             -Dsonar.password=${SONARQUBE_PASSWORD} \
-            -Dsonar.host.url=${SONARQUBE_URL}
+            -Dsonar.host.url=${SONARQUBE_URL} \
+            -Dsonar.projectKey=${IMAGE_NAME}
 
           else
               echo "Skipping Sonar Qube step for now but include"
