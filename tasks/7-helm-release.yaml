@@ -79,10 +79,12 @@ spec:
           IMAGE_NAME=$(echo $IMAGE_TAG | awk -F : '{print $1}')
           IMAGE_VERSION=$(echo $IMAGE_TAG | awk -F : '{print $2}')
 
-          echo "$REGISTRY_URL: $REGISTRY_URL"
-          echo "$REGISTRY_NAMESPACE: $REGISTRY_NAMESPACE"
-          echo "IMAGE_NAME: $IMAGE_NAME"
-          echo "$IMAGE_VERSION: $IMAGE_VERSION"
+          echo "REGISTRY_URL=$REGISTRY_URL" >> ./.env-config
+          echo "REGISTRY_NAMESPACE=$REGISTRY_NAMESPACE" >> ./.env-config
+          echo "IMAGE_NAME=$IMAGE_NAME" >> ./.env-config
+          echo "IMAGE_VERSION=$IMAGE_VERSION" >> ./.env-config
+
+          cat ./.env-config
 
           export CHART_ROOT=$(find . -name chart)
           echo "CHART_ROOT: $CHART_ROOT"
@@ -174,6 +176,8 @@ spec:
         - |
           set -e
 
+          source ./.env-config
+
           if [[ -z "${HELM_URL}" ]] && [[ -z "${HELM_USER}" ]]; then
             if [[ -z "${ARTIFACTORY_URL}" ]]; then
               echo "It looks like Artifactory has not been installed (ARTIFACTORY_URL from artifactory-config config map is missing). Skipping step."
@@ -216,9 +220,6 @@ spec:
 
           CHART_PATH="${CHART_ROOT}/${CHART_NAME}"
 
-          REGISTRY_URL=$(echo $IMAGE_URL | awk -F / '{print $1}')
-
-          REGISTRY_NAMESPACE=$(echo $IMAGE_URL | awk -F / '{print $2}')
           # Package Helm Chart
           helm package --version ${IMAGE_VERSION} ${CHART_PATH}
 
