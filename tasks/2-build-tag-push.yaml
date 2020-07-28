@@ -32,7 +32,7 @@ spec:
       default: docker.io/node:12-stretch
     - name: BUILDER_IMAGE
       type: string
-      default: quay.io/buildah/stable:v1.11.0
+      default: quay.io/buildah/stable:v1.15.0
     - name: DOCKERFILE
       type: string
       default: ./Dockerfile
@@ -42,6 +42,11 @@ spec:
     - name: TLSVERIFY
       type: string
       default: "false"
+    - name: FORMAT
+      default: "docker"
+    - name: STORAGE_DRIVER
+      description: Set buildah storage driver
+      default: overlay
   results:
     - name: image-url
       description: The url of the image to be pushed
@@ -88,11 +93,11 @@ spec:
 
           echo "Building image: ${APP_IMAGE}"
 
-          buildah bud --tls-verify=$(params.TLSVERIFY) --format=docker -f $(params.DOCKERFILE) -t ${APP_IMAGE}  $(params.CONTEXT)
+          buildah --layers --storage-driver=$(params.STORAGE_DRIVER) bud --format=$(params.FORMAT) --tls-verify=$(params.TLSVERIFY) -f $(params.DOCKERFILE) -t ${APP_IMAGE} $(params.CONTEXT)
           if [[ -n "${REGISTRY_USER}" ]] && [[ -n "${REGISTRY_PASSWORD}" ]] && [[ "${REGISTRY_URL}" != "image-registry.openshift-image-registry.svc:5000" ]]; then
             buildah login -u "${REGISTRY_USER}" -p "${REGISTRY_PASSWORD}" "${REGISTRY_URL}"
           fi
-          buildah push --tls-verify=$(params.TLSVERIFY) "${APP_IMAGE}" "docker://${APP_IMAGE}"
+          buildah --storage-driver=$(params.STORAGE_DRIVER) push --tls-verify=$(params.TLSVERIFY) --digestfile ./image-digest ${APP_IMAGE} docker://${APP_IMAGE}
 
           echo -n "${APP_IMAGE}" | tee $(results.image-url.path)
       env:
