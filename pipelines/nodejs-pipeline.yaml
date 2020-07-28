@@ -20,6 +20,10 @@ spec:
       description: The url for the resulting image
       type: string
       default: ""
+    - name: va-scan
+      description: Flag indicating that a Vulnerability Advisor scan should be performed
+      type: string
+      default: "false"
     - name: image-tag
       description: The tag that should be given the build image
       type: string
@@ -117,11 +121,29 @@ spec:
           value: $(tasks.setup.results.image-name)
         - name: source-dir
           value: $(tasks.setup.results.source-dir)
+    - name: scan
+      taskRef:
+        name: ibm-img-scan-ibm
+      runAfter:
+        - img-release
+      params:
+        - name: git-url
+          value: $(params.git-url)
+        - name: revision
+          value: $(tasks.setup.results.revision)
+        - name: image-url
+          value: $(tasks.build.results.image-url)
+        - name: image-name
+          value: $(tasks.setup.results.image-name)
+        - name: source-dir
+          value: $(tasks.setup.results.source-dir)
+        - name: perform-scan
+          value: $(params.va-scan)
     - name: helm-release
       taskRef:
         name: ibm-helm-package
       runAfter:
-        - img-release
+        - scan
       params:
         - name: git-url
           value: $(params.git-url)
