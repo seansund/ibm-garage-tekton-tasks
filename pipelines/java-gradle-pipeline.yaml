@@ -48,7 +48,7 @@ spec:
         - setup
       params:
         - name: git-url
-          value: $(params.git-url)
+          value: $(tasks.setup.results.git-url)
         - name: revision
           value: $(tasks.setup.results.revision)
         - name: source-dir
@@ -64,7 +64,7 @@ spec:
        - test
       params:
         - name: git-url
-          value: $(params.git-url)
+          value: $(tasks.setup.results.git-url)
         - name: revision
           value: $(tasks.setup.results.revision)
         - name: image-url
@@ -80,7 +80,7 @@ spec:
        - build
       params:
         - name: git-url
-          value: $(params.git-url)
+          value: $(tasks.setup.results.git-url)
         - name: revision
           value: $(tasks.setup.results.revision)
         - name: image-url
@@ -96,7 +96,7 @@ spec:
         - deploy
       params:
         - name: git-url
-          value: $(params.git-url)
+          value: $(tasks.setup.results.git-url)
         - name: revision
           value: $(tasks.setup.results.revision)
         - name: image-url
@@ -112,7 +112,7 @@ spec:
         - health
       params:
         - name: git-url
-          value: $(params.git-url)
+          value: $(tasks.setup.results.git-url)
         - name: revision
           value: $(tasks.setup.results.revision)
         - name: image-url
@@ -128,7 +128,7 @@ spec:
         - pact-verify
       params:
         - name: git-url
-          value: $(params.git-url)
+          value: $(tasks.setup.results.git-url)
         - name: revision
           value: $(tasks.setup.results.revision)
         - name: image-url
@@ -144,7 +144,7 @@ spec:
         - img-release
       params:
         - name: git-url
-          value: $(params.git-url)
+          value: $(tasks.setup.results.git-url)
         - name: revision
           value: $(tasks.setup.results.revision)
         - name: image-url
@@ -162,7 +162,7 @@ spec:
        - scan
       params:
         - name: git-url
-          value: $(params.git-url)
+          value: $(tasks.setup.results.git-url)
         - name: revision
           value: $(tasks.setup.results.revision)
         - name: image-url
@@ -178,7 +178,7 @@ spec:
        - helm-release
       params:
         - name: git-url
-          value: $(params.git-url)
+          value: $(tasks.setup.results.git-url)
         - name: revision
           value: $(tasks.setup.results.revision)
         - name: image-url
