@@ -132,7 +132,7 @@ spec:
         - name: revision
           value: $(tasks.setup.results.revision)
         - name: image-url
-          value: $(tasks.build.results.image-url)
+          value: $(tasks.img-release.results.image-url)
         - name: app-name
           value: $(tasks.setup.results.app-name)
         - name: source-dir
