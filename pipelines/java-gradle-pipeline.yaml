@@ -6,92 +6,162 @@ metadata:
     version: 0.0.0
 spec:
   params:
-    - name: repo-url
+    - name: git-url
+      type: string
+      description: The url for the git repository
     - name: revision
+      description: The git revision (branch, tag, or sha) that should be built
+      type: string
       default: master
-    - name: image
+    - name: image-url
+      description: The url for the resulting image
+      type: string
+    - name: image-name
+      description: The url for the resulting image
+      type: string
+      default: ""
     - name: image-tag
+      description: The tag that should be given the build image
+      type: string
       default: latest
   tasks:
+    - name: setup
+      taskRef:
+        name: igc-setup
+      params:
+        - name: git-url
+          value: $(params.git-url)
+        - name: revision
+          value: $(params.revision)
+        - name: image-url
+          value: $(params.image-url):$(params.image-tag)
+        - name: image-name
+          value: $(params.image-name)
     - name: test
       taskRef:
         name: igc-java-gradle-test
+      runAfter:
+        - setup
       params:
-        - name: image
-          value: $(params.image):$(params.image-tag)
-        - name: repo-url
-          value: $(params.repo-url)
+        - name: git-url
+          value: $(params.git-url)
         - name: revision
-          value: $(params.revision)
+          value: $(tasks.setup.results.revision)
+        - name: source-dir
+          value: $(tasks.setup.results.source-dir)
+        - name: image-url
+          value: $(tasks.setup.results.image-url)
+        - name: image-name
+          value: $(tasks.setup.results.image-name)
     - name: build
       taskRef:
         name: igc-build-tag-push
       runAfter:
        - test
       params:
-        - name: image
-          value: $(params.image):$(params.image-tag)
-        - name: repo-url
-          value: $(params.repo-url)
+        - name: git-url
+          value: $(params.git-url)
         - name: revision
-          value: $(params.revision)
+          value: $(tasks.setup.results.revision)
+        - name: image-url
+          value: $(tasks.setup.results.image-url)
+        - name: image-name
+          value: $(tasks.setup.results.image-name)
+        - name: source-dir
+          value: $(tasks.setup.results.source-dir)
     - name: deploy
       taskRef:
         name: igc-deploy
       runAfter:
        - build
       params:
-        - name: image
-          value: $(params.image):$(params.image-tag)
-        - name: repo-url
-          value: $(params.repo-url)
+        - name: git-url
+          value: $(params.git-url)
         - name: revision
-          value: $(params.revision)
+          value: $(tasks.setup.results.revision)
+        - name: image-url
+          value: $(tasks.build.results.image-url)
+        - name: image-name
+          value: $(tasks.setup.results.image-name)
+        - name: source-dir
+          value: $(tasks.setup.results.source-dir)
     - name: health
       taskRef:
         name: igc-health-check
       runAfter:
         - deploy
       params:
-        - name: image
-          value: $(params.image):$(params.image-tag)
-        - name: repo-url
-          value: $(params.repo-url)
+        - name: git-url
+          value: $(params.git-url)
         - name: revision
-          value: $(params.revision)
+          value: $(tasks.setup.results.revision)
+        - name: image-url
+          value: $(tasks.build.results.image-url)
+        - name: image-name
+          value: $(tasks.setup.results.image-name)
+        - name: source-dir
+          value: $(tasks.setup.results.source-dir)
     - name: pact-verify
       taskRef:
         name: igc-gradle-pact-verify
       runAfter:
         - health
       params:
-        - name: image
-          value: $(params.image):$(params.image-tag)
-        - name: repo-url
-          value: $(params.repo-url)
+        - name: git-url
+          value: $(params.git-url)
         - name: revision
-          value: $(params.revision)
-    - name: release
+          value: $(tasks.setup.results.revision)
+        - name: image-url
+          value: $(tasks.build.results.image-url)
+        - name: image-name
+          value: $(tasks.setup.results.image-name)
+        - name: source-dir
+          value: $(tasks.setup.results.source-dir)
+    - name: img-release
+      taskRef:
+        name: igc-img-release
+      runAfter:
+        - pact-verify
+      params:
+        - name: git-url
+          value: $(params.git-url)
+        - name: revision
+          value: $(tasks.setup.results.revision)
+        - name: image-url
+          value: $(tasks.build.results.image-url)
+        - name: image-name
+          value: $(tasks.setup.results.image-name)
+        - name: source-dir
+          value: $(tasks.setup.results.source-dir)
+    - name: helm-release
       taskRef:
         name: igc-helm-package
       runAfter:
-       - pact-verify
+       - img-release
       params:
-        - name: image
-          value: $(params.image):$(params.image-tag)
-        - name: repo-url
-          value: $(params.repo-url)
+        - name: git-url
+          value: $(params.git-url)
         - name: revision
-          value: $(params.revision)
+          value: $(tasks.setup.results.revision)
+        - name: image-url
+          value: $(tasks.img-release.results.image-url)
+        - name: image-name
+          value: $(tasks.setup.results.image-name)
+        - name: source-dir
+          value: $(tasks.setup.results.source-dir)
     - name: gitops
       taskRef:
         name: igc-gitops
       runAfter:
-       - release
+       - helm-release
       params:
-        - name: image
-          value: $(params.image):$(params.image-tag)
-        - name: repo-url
-          value: $(params.repo-url)
+        - name: git-url
+          value: $(params.git-url)
         - name: revision
-          value: $(params.revision)
+          value: $(tasks.setup.results.revision)
+        - name: image-url
+          value: $(tasks.img-release.results.image-url)
+        - name: image-name
+          value: $(tasks.setup.results.image-name)
+        - name: source-dir
+          value: $(tasks.setup.results.source-dir)
