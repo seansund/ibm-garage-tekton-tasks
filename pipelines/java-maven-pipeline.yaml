@@ -6,80 +6,168 @@ metadata:
     version: 0.0.0
 spec:
   params:
-    - name: repo-url
+    - name: git-url
+      type: string
+      description: The url for the git repository
     - name: revision
+      description: The git revision (branch, tag, or sha) that should be built
+      type: string
       default: master
-    - name: image
+    - name: image-url
+      description: The url for the resulting image
+      type: string
+    - name: app-name
+      description: The url for the resulting image
+      type: string
+      default: ""
+    - name: va-scan
+      description: Flag indicating that a Vulnerability Advisor scan should be performed
+      type: string
+      default: "false"
     - name: image-tag
+      description: The tag that should be given the build image
+      type: string
       default: latest
   tasks:
+    - name: setup
+      taskRef:
+        name: ibm-setup
+      params:
+        - name: git-url
+          value: $(params.git-url)
+        - name: revision
+          value: $(params.revision)
+        - name: image-url
+          value: $(params.image-url):$(params.image-tag)
+        - name: app-name
+          value: $(params.app-name)
     - name: test
       taskRef:
         name: ibm-java-maven-test
+      runAfter:
+        - setup
       params:
-        - name: image
-          value: $(params.image):$(params.image-tag)
-        - name: repo-url
-          value: $(params.repo-url)
+        - name: git-url
+          value: $(tasks.setup.results.git-url)
         - name: revision
-          value: $(params.revision)
+          value: $(tasks.setup.results.revision)
+        - name: source-dir
+          value: $(tasks.setup.results.source-dir)
+        - name: image-url
+          value: $(tasks.setup.results.image-url)
+        - name: app-name
+          value: $(tasks.setup.results.app-name)
     - name: build
       taskRef:
         name: ibm-build-tag-push
       runAfter:
-       - test
+        - test
       params:
-        - name: image
-          value: $(params.image):$(params.image-tag)
-        - name: repo-url
-          value: $(params.repo-url)
+        - name: git-url
+          value: $(tasks.setup.results.git-url)
         - name: revision
-          value: $(params.revision)
+          value: $(tasks.setup.results.revision)
+        - name: image-url
+          value: $(tasks.setup.results.image-url)
+        - name: app-name
+          value: $(tasks.setup.results.app-name)
+        - name: source-dir
+          value: $(tasks.setup.results.source-dir)
     - name: deploy
       taskRef:
         name: ibm-deploy
       runAfter:
-       - build
+        - build
       params:
-        - name: image
-          value: $(params.image):$(params.image-tag)
-        - name: repo-url
-          value: $(params.repo-url)
+        - name: git-url
+          value: $(tasks.setup.results.git-url)
         - name: revision
-          value: $(params.revision)
+          value: $(tasks.setup.results.revision)
+        - name: image-url
+          value: $(tasks.setup.results.image-url)
+        - name: app-name
+          value: $(tasks.setup.results.app-name)
+        - name: source-dir
+          value: $(tasks.setup.results.source-dir)
     - name: health
       taskRef:
         name: ibm-health-check
       runAfter:
-       - deploy
+        - deploy
       params:
-        - name: image
-          value: $(params.image):$(params.image-tag)
-        - name: repo-url
-          value: $(params.repo-url)
+        - name: git-url
+          value: $(tasks.setup.results.git-url)
         - name: revision
-          value: $(params.revision)
-    - name: package
+          value: $(tasks.setup.results.revision)
+        - name: image-url
+          value: $(tasks.setup.results.image-url)
+        - name: app-name
+          value: $(tasks.setup.results.app-name)
+        - name: source-dir
+          value: $(tasks.setup.results.source-dir)
+    - name: img-release
+      taskRef:
+        name: ibm-img-release
+      runAfter:
+        - health
+      params:
+        - name: git-url
+          value: $(tasks.setup.results.git-url)
+        - name: revision
+          value: $(tasks.setup.results.revision)
+        - name: image-url
+          value: $(tasks.setup.results.image-url)
+        - name: app-name
+          value: $(tasks.setup.results.app-name)
+        - name: source-dir
+          value: $(tasks.setup.results.source-dir)
+    - name: scan
+      taskRef:
+        name: ibm-img-scan-ibm
+      runAfter:
+        - img-release
+      params:
+        - name: git-url
+          value: $(tasks.setup.results.git-url)
+        - name: revision
+          value: $(tasks.setup.results.revision)
+        - name: image-url
+          value: $(tasks.build.results.image-url)
+        - name: app-name
+          value: $(tasks.setup.results.app-name)
+        - name: source-dir
+          value: $(tasks.setup.results.source-dir)
+        - name: perform-scan
+          value: $(params.va-scan)
+    - name: helm-release
       taskRef:
         name: ibm-helm-package
       runAfter:
-       - health
+        - scan
       params:
-        - name: image
-          value: $(params.image):$(params.image-tag)
-        - name: repo-url
-          value: $(params.repo-url)
+        - name: git-url
+          value: $(tasks.setup.results.git-url)
         - name: revision
-          value: $(params.revision)
+          value: $(tasks.setup.results.revision)
+        - name: image-url
+          value: $(tasks.img-release.results.image-url)
+        - name: app-name
+          value: $(tasks.setup.results.app-name)
+        - name: source-dir
+          value: $(tasks.setup.results.source-dir)
     - name: gitops
       taskRef:
         name: ibm-gitops
       runAfter:
-       - package
+        - helm-release
       params:
-        - name: image
-          value: $(params.image):$(params.image-tag)
-        - name: repo-url
-          value: $(params.repo-url)
+        - name: git-url
+          value: $(tasks.setup.results.git-url)
         - name: revision
-          value: $(params.revision)
+          value: $(tasks.setup.results.revision)
+        - name: image-url
+          value: $(tasks.img-release.results.image-url)
+        - name: app-name
+          value: $(tasks.setup.results.app-name)
+        - name: source-dir
+          value: $(tasks.setup.results.source-dir)
