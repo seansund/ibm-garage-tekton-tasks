@@ -89,7 +89,7 @@ spec:
           echo "Building image: ${APP_IMAGE}"
 
           buildah bud --tls-verify=$(params.TLSVERIFY) --format=docker -f $(params.DOCKERFILE) -t ${APP_IMAGE}  $(params.CONTEXT)
-          if [[ -n "${REGISTRY_USER}" ]] && [[ -n "${REGISTRY_PASSWORD}" ]] && [[ "${REGISTRY_URL}" != "image-registry.openshift-image-registry.svc:5000" ]]; then; then
+          if [[ -n "${REGISTRY_USER}" ]] && [[ -n "${REGISTRY_PASSWORD}" ]] && [[ "${REGISTRY_URL}" != "image-registry.openshift-image-registry.svc:5000" ]]; then
             buildah login -u "${REGISTRY_USER}" -p "${REGISTRY_PASSWORD}" "${REGISTRY_URL}"
           fi
           buildah push --tls-verify=$(params.TLSVERIFY) "${APP_IMAGE}" "docker://${APP_IMAGE}"
