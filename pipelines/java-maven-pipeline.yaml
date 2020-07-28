@@ -9,7 +9,7 @@ spec:
     - name: git-url
       type: string
       description: The url for the git repository
-    - name: revision
+    - name: git-revision
       description: The git revision (branch, tag, or sha) that should be built
       type: string
       default: master
@@ -36,7 +36,7 @@ spec:
         - name: git-url
           value: $(params.git-url)
         - name: revision
-          value: $(params.revision)
+          value: $(params.git-revision)
         - name: image-url
           value: $(params.image-url):$(params.image-tag)
         - name: app-name
