@@ -107,7 +107,7 @@ spec:
 
           if [ -n "${SONARQUBE_URL}" ]; then
 
-            sonar-scanner -X \
+            sonar-scanner \
             -Dsonar.login=${SONARQUBE_USER} \
             -Dsonar.password=${SONARQUBE_PASSWORD} \
             -Dsonar.host.url=${SONARQUBE_URL} \

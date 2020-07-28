@@ -158,6 +158,7 @@ spec:
             grep -E "deployment|statefulset" | \
             sed "s/deployment.apps/deployment/g" | \
             sed "s/statefulset.apps/statefulset/g" | \
+            sed "s/created//g" | \
             sed "s/configured//g" | \
             sed "s/unchanged//g" | while read target; do
 
