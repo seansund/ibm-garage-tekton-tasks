@@ -1,7 +1,7 @@
 apiVersion: tekton.dev/v1beta1
 kind: Pipeline
 metadata:
-  name: igc-nodejs
+  name: ibm-nodejs
   labels:
     version: 0.0.0
 spec:
@@ -27,7 +27,7 @@ spec:
   tasks:
     - name: setup
       taskRef:
-        name: igc-setup
+        name: ibm-setup
       params:
         - name: git-url
           value: $(params.git-url)
@@ -39,7 +39,7 @@ spec:
           value: $(params.image-name)
     - name: test
       taskRef:
-        name: igc-nodejs-test
+        name: ibm-nodejs-test
       runAfter:
         - setup
       params:
@@ -55,7 +55,7 @@ spec:
           value: $(tasks.setup.results.image-name)
     - name: build
       taskRef:
-        name: igc-build-tag-push
+        name: ibm-build-tag-push
       runAfter:
        - test
       params:
@@ -71,7 +71,7 @@ spec:
           value: $(tasks.setup.results.source-dir)
     - name: deploy
       taskRef:
-        name: igc-deploy
+        name: ibm-deploy
       runAfter:
        - build
       params:
@@ -87,7 +87,7 @@ spec:
           value: $(tasks.setup.results.source-dir)
     - name: health
       taskRef:
-        name: igc-health-check
+        name: ibm-health-check
       runAfter:
        - deploy
       params:
@@ -103,7 +103,7 @@ spec:
           value: $(tasks.setup.results.source-dir)
     - name: img-release
       taskRef:
-        name: igc-img-release
+        name: ibm-img-release
       runAfter:
         - health
       params:
@@ -119,7 +119,7 @@ spec:
           value: $(tasks.setup.results.source-dir)
     - name: helm-release
       taskRef:
-        name: igc-helm-package
+        name: ibm-helm-package
       runAfter:
         - img-release
       params:
@@ -135,7 +135,7 @@ spec:
           value: $(tasks.setup.results.source-dir)
     - name: gitops
       taskRef:
-        name: igc-gitops
+        name: ibm-gitops
       runAfter:
        - helm-release
       params:

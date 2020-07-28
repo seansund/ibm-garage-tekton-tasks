@@ -1,7 +1,7 @@
 apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
-  name: igc-gradle-pact-verify
+  name: ibm-gradle-pact-verify
   labels:
     version: 0.0.0
 spec:

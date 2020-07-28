@@ -1,7 +1,7 @@
 apiVersion: tekton.dev/v1beta1
 kind: Pipeline
 metadata:
-  name: igc-golang-sec
+  name: ibm-golang-sec
   annotations:
     description: Pipeline to build a golang application and push the changes to a GitOps repository
   labels:
@@ -17,7 +17,7 @@ spec:
   tasks:
     - name: test
       taskRef:
-        name: igc-golang-test
+        name: ibm-golang-test
       params:
         - name: image
           value: $(params.image):$(params.image-tag)
@@ -27,7 +27,7 @@ spec:
           value: $(params.revision)
     - name: build
       taskRef:
-        name: igc-build-tag-push
+        name: ibm-build-tag-push
       runAfter:
        - test
       params:
@@ -39,7 +39,7 @@ spec:
           value: $(params.revision)
     - name: scan
       taskRef:
-        name: igc-img-scan-ibm
+        name: ibm-img-scan-ibm
       runAfter:
         - build
       params:
@@ -51,7 +51,7 @@ spec:
           value: $(params.revision)
     - name: deploy
       taskRef:
-        name: igc-deploy
+        name: ibm-deploy
       runAfter:
        - scan
       params:
@@ -63,7 +63,7 @@ spec:
           value: $(params.revision)
     - name: health
       taskRef:
-        name: igc-health-check
+        name: ibm-health-check
       runAfter:
        - deploy
       params:
@@ -75,7 +75,7 @@ spec:
           value: $(params.revision)
     - name: release
       taskRef:
-        name: igc-helm-package
+        name: ibm-helm-package
       runAfter:
        - health
       params:
@@ -87,7 +87,7 @@ spec:
           value: $(params.revision)
     - name: gitops
       taskRef:
-        name: igc-gitops
+        name: ibm-gitops
       runAfter:
        - release
       params:

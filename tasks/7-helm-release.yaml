@@ -1,7 +1,7 @@
 apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
-  name: igc-helm-package
+  name: ibm-helm-package
   labels:
     version: 0.0.0
 spec:
