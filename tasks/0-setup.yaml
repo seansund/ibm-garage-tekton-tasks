@@ -70,6 +70,7 @@ spec:
             git reset --hard "${REVISION}"
           fi
 
+          echo ""
           echo "REVISION: ${REVISION}"
           echo -n "${REVISION}" | tee $(results.revision.path)
 
@@ -80,7 +81,7 @@ spec:
           echo "IMAGE_NAME: ${IMAGE_NAME}"
           echo -n "${IMAGE_NAME}" | tee $(results.image-name.path)
 
-          echo -n $(params.source-dir) | tee $(results.source-dir.path)
+          echo -n "/source" | tee $(results.source-dir.path)
 
           echo -n $(params.image-url) | tee $(results.image-url.path)
       volumeMounts:

@@ -51,6 +51,12 @@ spec:
           cd $(params.source-dir)
 
           git reset --hard $(params.revision)
+
+          echo ""
+          echo "REVISION: $(params.revision)"
+          echo "SOURCE_DIR: $(params.source-dir)"
+          echo "IMAGE_URL: $(params.image-url)"
+          echo "IMAGE_NAME: $(params.image-name)"
       volumeMounts:
         - name: source
           mountPath: $(params.source-dir)
@@ -138,16 +144,20 @@ spec:
           IMAGE_URL=$(params.image-url)
           IMAGE_NAME=$(params.image-name)
 
-          REGISTRY_URL=$(echo $IMAGE_URL | awk -F / '{print $1}')
-          REGISTRY_NAMESPACE=$(echo $IMAGE_URL | awk -F / '{print $2}')
+          if [[ -z "${REGISTRY_URL}" ]]; then
+            REGISTRY_URL=$(echo $IMAGE_URL | awk -F / '{print $1}')
+          fi
+          if [[ -z "${REGISTRY_NAMESPACE}" ]]; then
+            REGISTRY_NAMESPACE=$(echo $IMAGE_URL | awk -F / '{print $2}')
+          fi
 
           BASE_IMAGE="${REGISTRY_URL}/${REGISTRY_NAMESPACE}/${IMAGE_NAME}"
           APP_IMAGE="${BASE_IMAGE}:${IMAGE_VERSION}"
 
-          echo "Building image: ${APP_IMAGE}"
+          echo "Tagging ${IMAGE_URL} as ${APP_IMAGE}"
 
           if [[ -n "${REGISTRY_USER}" ]] && [[ -n "${REGISTRY_PASSWORD}" ]]; then
-            skopeo login -u "${REGISTRY_USER}" -p "${REGISTRY_PASSWORD}" "docker://${REGISTRY_URL}"
+            skopeo login -u "${REGISTRY_USER}" -p "${REGISTRY_PASSWORD}" "${REGISTRY_URL}"
           fi
           skopeo copy docker://${IMAGE_URL} docker://${APP_IMAGE}
 
@@ -164,6 +174,18 @@ spec:
             secretKeyRef:
               name: ibmcloud-apikey
               key: APIKEY
+              optional: true
+        - name: REGISTRY_URL
+          valueFrom:
+            secretKeyRef:
+              name: ibmcloud-config
+              key: REGISTRY_URL
+              optional: true
+        - name: REGISTRY_NAMESPACE
+          valueFrom:
+            secretKeyRef:
+              name: ibmcloud-config
+              key: REGISTRY_NAMESPACE
               optional: true
       volumeMounts:
         - mountPath: /var/lib/containers

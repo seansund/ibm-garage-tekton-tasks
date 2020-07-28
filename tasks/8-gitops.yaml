@@ -40,6 +40,12 @@ spec:
           cd $(params.source-dir)
 
           git reset --hard $(params.revision)
+
+          echo ""
+          echo "REVISION: $(params.revision)"
+          echo "SOURCE_DIR: $(params.source-dir)"
+          echo "IMAGE_URL: $(params.image-url)"
+          echo "IMAGE_NAME: $(params.image-name)"
       volumeMounts:
         - name: source
           mountPath: $(params.source-dir)

@@ -41,6 +41,12 @@ spec:
           cd $(params.source-dir)
 
           git reset --hard $(params.revision)
+
+          echo ""
+          echo "REVISION: $(params.revision)"
+          echo "SOURCE_DIR: $(params.source-dir)"
+          echo "IMAGE_URL: $(params.image-url)"
+          echo "IMAGE_NAME: $(params.image-name)"
       volumeMounts:
         - name: source
           mountPath: $(params.source-dir)
@@ -70,8 +76,8 @@ spec:
           REGISTRY_URL=$(echo $IMAGE_URL | awk -F / '{print $1}')
           REGISTRY_NAMESPACE=$(echo $IMAGE_URL | awk -F / '{print $2}')
           IMAGE_TAG=$(echo $IMAGE_URL | awk -F / '{print $3}')
-          IMAGE_NAME=$(echo IMAGE_TAG | awk -F : '{print $1}')
-          IMAGE_VERSION=$(echo IMAGE_TAG | awk -F : '{print $2}')
+          IMAGE_NAME=$(echo $IMAGE_TAG | awk -F : '{print $1}')
+          IMAGE_VERSION=$(echo $IMAGE_TAG | awk -F : '{print $2}')
 
           echo "$REGISTRY_URL: $REGISTRY_URL"
           echo "$REGISTRY_NAMESPACE: $REGISTRY_NAMESPACE"

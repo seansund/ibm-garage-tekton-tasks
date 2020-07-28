@@ -11,7 +11,6 @@ spec:
       description: The git repository url
     - name: revision
       description: The git reference that was checked out
-      default: ""
     - name: image-url
       type: string
       description: "The location where to push the image in the form of <server>/<namespace>/<repository>:<tag>"
@@ -57,6 +56,12 @@ spec:
           cd $(params.source-dir)
 
           git reset --hard $(params.revision)
+
+          echo ""
+          echo "REVISION: $(params.revision)"
+          echo "SOURCE_DIR: $(params.source-dir)"
+          echo "IMAGE_URL: $(params.image-url)"
+          echo "IMAGE_NAME: $(params.image-name)"
       volumeMounts:
         - name: source
           mountPath: $(params.source-dir)

@@ -12,10 +12,12 @@ spec:
     - name: revision
       type: string
       description: The branch, tag, or git reference from the git git-url location
-      default: master
-    - name: image
+    - name: image-url
       type: string
       description: "The location where to push the image in the form of <server>/<namespace>/<repository>:<tag>"
+    - name: image-name
+      type: string
+      description: The name of that image that will be built for the application
     - name: source-dir
       type: string
       default: /source
@@ -41,8 +43,14 @@ spec:
         - |
           git clone $(params.git-url) $(params.source-dir)
           cd $(params.source-dir)
-          git checkout $(params.revision)
-          echo "IMAGE_NAME=$(basename $(git rev-parse --show-toplevel))" >> ./.env-config
+
+          git reset --hard $(params.revision)
+
+          echo ""
+          echo "REVISION: $(params.revision)"
+          echo "SOURCE_DIR: $(params.source-dir)"
+          echo "IMAGE_URL: $(params.image-url)"
+          echo "IMAGE_NAME: $(params.image-name)"
       volumeMounts:
         - name: source
           mountPath: $(params.source-dir)
@@ -89,7 +97,7 @@ spec:
         - |
           set -e
 
-          . ./.env-config
+          IMAGE_NAME=$(params.image-name)
 
           if ! command -v sonar-scanner &> /dev/null
           then
