@@ -6,19 +6,19 @@ metadata:
     version: 0.0.0
 spec:
   params:
-    - name: repo-url
+    - name: git-url
       type: string
       description: The git repository url
-    - name: branch
-      type: string
-      description: The branch or tag from the git repo-url location
-      default: master
     - name: revision
       description: The git reference that was checked out
-      default: ""
-    - name: image
+    - name: image-url
       type: string
       description: "The location where to push the image in the form of <server>/<namespace>/<repository>:<tag>"
+      default: ""
+    - name: image-name
+      type: string
+      description: The name of the application image
+      default: ""
     - name: source-dir
       type: string
       default: /source
@@ -28,9 +28,6 @@ spec:
     - name: tools-image
       type: string
       default: garagecatalyst/ibmcloud-dev:1.0.10
-  results:
-    - name: revision
-      description: The git reference that was checked out
   volumes:
     - name: source
       emptyDir: {}
@@ -41,61 +38,14 @@ spec:
       args:
         - -c
         - |
-          git clone $(params.repo-url) $(params.source-dir)
+          git clone $(params.git-url) $(params.source-dir)
           cd $(params.source-dir)
-          git checkout $(params.branch)
 
-          REVISION=$(params.revision)
-          if [ -z "${REVISION}" ]; then
-            REVISION=$(git rev-parse HEAD)
-          else
-            git reset --hard "${REVISION}"
-          fi
-
-          echo "REVISION: ${REVISION}"
-          echo -n "${REVISION}" | tee $(results.revision.path)
-
-          echo "IMAGE_NAME=$(basename $(git rev-parse --show-toplevel))" >> ./.env-config
-          echo "REVISION=${REVISION}" >> ./.env-config
+          git reset --hard $(params.revision)
       volumeMounts:
         - name: source
           mountPath: $(params.source-dir)
-    - name: setup
-      image: $(params.js-image)
-      workingdir: $(params.source-dir)
-      command: ["/bin/bash"]
-      env:
-        - name: BRANCH
-          value: $(params.revision)
-      args:
-        - -c
-        - |
-          set -x
-          set +e
-
-          git fetch --unshallow
-          git fetch --tags
-          git tag -l
-
-          git checkout ${BRANCH}
-
-          echo "IMAGE_VERSION=$(git describe --abbrev=0 --tags)" > ./env-config
-          echo "IMAGE_NAME=$(basename -s .git `git config --get remote.origin.url` | tr '[:upper:]' '[:lower:]' | sed 's/_/-/g')" >> ./env-config
-          echo "REPO_URL=$(git config --get remote.origin.url)" >> ./env-config
-
-          source ./env-config
-          if [[ -z "${IMAGE_VERSION}" ]]; then
-              echo "Error: IMAGE_VERSION not defined"
-              exit 1
-          fi
-          if [[ -z "${IMAGE_NAME}" ]]; then
-              echo "Error: IMAGE_NAME not defined"
-              exit 1
-          fi
-      volumeMounts:
-        - name: source
-          mountPath: $(params.source-dir)
-    - name: deploy
+    - name: helm-deploy
       image: $(params.tools-image)
       workingdir: $(params.source-dir)
       env:
@@ -114,11 +64,12 @@ spec:
         - |
           set -e
 
-          . ./env-config
-
           ENVIRONMENT_NAME="${NAMESPACE}"
 
-          IMAGE_URL=$(params.image)
+          REPO_URL=$(params.git-url)
+          IMAGE_URL=$(params.image-url)
+          IMAGE_NAME=$(params.image-name)
+          IAMGE_VERSION=$(params.revision)
 
           REGISTRY_URL=$(echo $IMAGE_URL | awk -F / '{print $1}')
           REGISTRY_NAMESPACE=$(echo $IMAGE_URL | awk -F / '{print $2}')
@@ -143,8 +94,7 @@ spec:
             cp -R "${CHART_ROOT}/${CHART_NAME}" "${CHART_ROOT}/${IMAGE_NAME}"
             cat "${CHART_ROOT}/${CHART_NAME}/Chart.yaml" | \
                 yq w - apiVersion "v1" | \
-                yq w - name "${IMAGE_NAME}" | \
-                yq w - version "${IMAGE_VERSION}" > "${CHART_ROOT}/${IMAGE_NAME}/Chart.yaml"
+                yq w - name "${IMAGE_NAME}" > "${CHART_ROOT}/${IMAGE_NAME}/Chart.yaml"
           else
             echo "Chart name and image name match: ${IMAGE_NAME}"
           fi
@@ -194,7 +144,20 @@ spec:
           cat ./release.yaml
 
           echo -e "Deploying into: ${ENVIRONMENT_NAME}/${IMAGE_NAME}"
-          kubectl apply -n ${ENVIRONMENT_NAME} -f ./release.yaml --validate=false
+          kubectl apply -n ${ENVIRONMENT_NAME} -f ./release.yaml --validate=false > results.out
+          cat results.out
+
+          echo "Waiting for rollout of ${ENVIRONMENT_NAME}/${IMAGE_NAME}"
+          cat results.out | \
+            grep -E "deployment|statefulset" | \
+            sed "s/deployment.apps/deployment/g" | \
+            sed "s/statefulset.apps/statefulset/g" | \
+            sed "s/configured//g" | \
+            sed "s/unchanged//g" | while read target; do
+
+            echo "Waiting for rollout of ${target} in ${ENVIRONMENT_NAME}"
+            kubectl rollout status -n ${ENVIRONMENT_NAME} ${target}
+          done
       volumeMounts:
         - name: source
           mountPath: $(params.source-dir)

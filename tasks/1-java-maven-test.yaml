@@ -4,12 +4,12 @@ metadata:
   name: igc-java-maven-test
 spec:
   params:
-    - name: repo-url
+    - name: git-url
       type: string
       description: The git repository url
     - name: revision
       type: string
-      description: The branch, tag, or git reference from the git repo-url location
+      description: The branch, tag, or git reference from the git git-url location
       default: master
     - name: image
       type: string
@@ -33,7 +33,7 @@ spec:
       args:
         - -c
         - |
-          git clone $(params.repo-url) $(params.source-dir)
+          git clone $(params.git-url) $(params.source-dir)
           cd $(params.source-dir)
           git checkout $(params.revision)
           echo "IMAGE_NAME=$(basename $(git rev-parse --show-toplevel))" >> ./.env-config

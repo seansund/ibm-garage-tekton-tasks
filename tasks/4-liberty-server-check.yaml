@@ -4,19 +4,17 @@ metadata:
   name: igc-liberty-server-check
 spec:
   params:
-    - name: repo-url
+    - name: git-url
       type: string
       description: The git repository url
-    - name: branch
-      type: string
-      description: The branch or tag from the git repo-url location
-      default: master
     - name: revision
       description: The git reference that was checked out
-      default: ""
-    - name: image
+    - name: image-url
       type: string
       description: "The location where to push the image in the form of <server>/<namespace>/<repository>:<tag>"
+    - name: image-name
+      type: string
+      description: The name of the image for the application
     - name: source-dir
       type: string
       default: /source
@@ -26,9 +24,6 @@ spec:
     - name: tools-image
       type: string
       default: garagecatalyst/ibmcloud-dev:1.0.10
-  results:
-    - name: revision
-      description: The git reference that was checked out
   volumes:
     - name: source
       emptyDir: {}
@@ -39,22 +34,10 @@ spec:
       args:
         - -c
         - |
-          git clone $(params.repo-url) $(params.source-dir)
+          git clone $(params.git-url) $(params.source-dir)
           cd $(params.source-dir)
-          git checkout $(params.branch)
 
-          REVISION=$(params.revision)
-          if [ -z "${REVISION}" ]; then
-            REVISION=$(git rev-parse HEAD)
-          else
-            git reset --hard "${REVISION}"
-          fi
-
-          echo "REVISION: ${REVISION}"
-          echo -n "${REVISION}" | tee $(results.revision.path)
-
-          echo "IMAGE_NAME=$(basename $(git rev-parse --show-toplevel))" >> ./.env-config
-          echo "REVISION=${REVISION}" >> ./.env-config
+          git reset --hard $(params.revision)
       volumeMounts:
         - name: source
           mountPath: $(params.source-dir)
@@ -75,7 +58,7 @@ spec:
         - |
           ENVIRONMENT_NAME="${NAMESPACE}"
 
-          IMAGE_NAME=$(basename -s .git `git config --get remote.origin.url` | tr '[:upper:]' '[:lower:]' | sed 's/_/-/g')
+          IMAGE_NAME=$(params.image-name)
 
           if [[ "${CLUSTER_TYPE}" == "openshift" ]]; then
               ROUTE_HOST=$(kubectl get route/${IMAGE_NAME} --namespace ${ENVIRONMENT_NAME} --output=jsonpath='{ .spec.host }')

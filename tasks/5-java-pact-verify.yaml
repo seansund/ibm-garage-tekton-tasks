@@ -6,19 +6,18 @@ metadata:
     version: 0.0.0
 spec:
   params:
-    - name: repo-url
+    - name: git-url
       type: string
       description: The git repository url
-    - name: branch
-      type: string
-      description: The branch or tag from the git repo-url location
-      default: master
     - name: revision
       description: The git reference that was checked out
-      default: ""
-    - name: image
+    - name: image-url
       type: string
       description: "The location where to push the image in the form of <server>/<namespace>/<repository>:<tag>"
+      default: ""
+    - name: image-name
+      type: string
+      description: The name of the image name for the application
     - name: source-dir
       type: string
       default: /source
@@ -28,9 +27,6 @@ spec:
     - name: tools-image
       type: string
       default: garagecatalyst/ibmcloud-dev:1.0.10
-  results:
-    - name: revision
-      description: The git reference that was checked out
   volumes:
     - name: source
       emptyDir: {}
@@ -45,69 +41,10 @@ spec:
       args:
         - -c
         - |
-          git clone $(params.repo-url) $(params.source-dir)
+          git clone $(params.git-url) $(params.source-dir)
           cd $(params.source-dir)
-          git checkout $(params.branch)
 
-          REVISION=$(params.revision)
-          if [ -z "${REVISION}" ]; then
-            REVISION=$(git rev-parse HEAD)
-          else
-            git reset --hard "${REVISION}"
-          fi
-
-          echo "REVISION: ${REVISION}"
-          echo -n "${REVISION}" | tee $(results.revision.path)
-
-          echo "IMAGE_NAME=$(basename $(git rev-parse --show-toplevel))" >> ./.env-config
-          echo "REVISION=${REVISION}" >> ./.env-config
-      volumeMounts:
-        - name: source
-          mountPath: $(params.source-dir)
-    - name: setup
-      image: $(params.tools-image)
-      workingdir: $(params.source-dir)
-      env:
-        - name: NAMESPACE
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.namespace
-        - name: BRANCH
-          value: $(params.revision)
-      envFrom:
-        - configMapRef:
-            name: ibmcloud-config
-      command: ["/bin/bash"]
-      args:
-        - -c
-        - |
-          set -e
-          git fetch --unshallow
-          git fetch --tags
-          git tag -l
-
-          git checkout ${BRANCH}
-
-          IMAGE_VERSION=$(git describe --abbrev=0 --tags)
-          IMAGE_NAME=$(basename -s .git `git config --get remote.origin.url` | tr '[:upper:]' '[:lower:]' | sed 's/_/-/g')
-
-          if [[ "${CLUSTER_TYPE}" == "openshift" ]]; then
-            HOST=$(kubectl get route/${IMAGE_NAME} --namespace ${NAMESPACE} --output=jsonpath='{ .spec.host }')
-            PROTOCOL="https"
-            PORT="443"
-          else
-            HOST=$(kubectl get ingress/${IMAGE_NAME} --namespace ${NAMESPACE} --output=jsonpath='{ .spec.rules[0].host }')
-            PROTOCOL="http"
-            PORT="80"
-          fi
-
-          echo "IMAGE_VERSION=${IMAGE_VERSION}" > ./env-config
-          echo "IMAGE_NAME=${IMAGE_NAME}" >> ./env-config
-          echo "HOST=${HOST}" >> ./env-config
-          echo "PORT=${PORT}" >> ./env-config
-          echo "PROTOCOL=${PROTOCOL}" >> ./env-config
-
-          chmod a+w ./env-config
+          git reset --hard $(params.revision)
       volumeMounts:
         - name: source
           mountPath: $(params.source-dir)
@@ -131,8 +68,11 @@ spec:
             exit 0
           fi
 
+          PROTOCOL=http
+          HOST=$(params.image-name)
+          PORT=80
+
           set -x
-          . ./env-config
 
           if ./gradlew tasks --all | grep -Eq "^pactVerify"; then
               echo "Pact Verify task found"

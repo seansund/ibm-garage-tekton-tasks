@@ -1,0 +1,88 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: igc-setup
+  labels:
+    version: 0.0.0
+spec:
+  params:
+    - name: git-url
+      type: string
+      description: The git repository url
+    - name: revision
+      description: The branch, tag, or sha from the git git-url location
+    - name: image-url
+      type: string
+      description: "The location where to push the image in the form of <server>/<namespace>/<repository>:<tag>"
+    - name: image-name
+      type: string
+      description: The name of the image/application that should be used for the pipeline
+      default: ""
+    - name: source-dir
+      type: string
+      description: The directory into which the git-repo should be cloned
+      default: /source
+  results:
+    - name: revision
+      description: The git reference that was checked out
+    - name: image-name
+      description: The name of the image/application that should be used for the pipeline
+    - name: image-url
+      description: "The location where to push the image in the form of <server>/<namespace>/<repository>:<tag>"
+    - name: source-dir
+      description: The directory into which the git-repo should be cloned
+  volumes:
+    - name: source
+      emptyDir: {}
+  stepTemplate:
+    envFrom:
+      - configMapRef:
+          name: pactbroker-config
+          optional: true
+  steps:
+    - name: git-clone
+      image: alpine/git
+      command: ["/bin/sh"]
+      env:
+        - name: GIT_AUTH_USER
+          valueFrom:
+            secretKeyRef:
+              name: git-credentials
+              key: username
+              optional: true
+        - name: GIT_AUTH_PWD
+          valueFrom:
+            secretKeyRef:
+              name: git-credentials
+              key: password
+              optional: true
+      args:
+        - -c
+        - |
+          git clone $(params.git-url) $(params.source-dir)
+          cd $(params.source-dir)
+          git checkout $(params.revision)
+
+          REVISION=$(params.revision)
+          if git branch | grep -q $(params.revision) || git tag | grep -q $(params.revision); then
+            REVISION=$(git rev-parse HEAD)
+          else
+            git reset --hard "${REVISION}"
+          fi
+
+          echo "REVISION: ${REVISION}"
+          echo -n "${REVISION}" | tee $(results.revision.path)
+
+          IMAGE_NAME=$(params.image-name)
+          if [ -z $IMAGE_NAME ]; then
+            IMAGE_NAME=$(echo $(params.git-url) | sed -E "s/.*\/(.*)/\1/g" | sed "s/.git//g" | tr '[:upper:]' '[:lower:]' | sed 's/_/-/g')
+          fi
+          echo "IMAGE_NAME: ${IMAGE_NAME}"
+          echo -n "${IMAGE_NAME}" | tee $(results.image-name.path)
+
+          echo -n $(params.source-dir) | tee $(results.source-dir.path)
+
+          echo -n $(params.image-url) | tee $(results.image-url.path)
+      volumeMounts:
+        - name: source
+          mountPath: $(params.source-dir)

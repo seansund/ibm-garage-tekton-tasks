@@ -6,19 +6,17 @@ metadata:
     version: 0.0.0
 spec:
   params:
-    - name: repo-url
+    - name: git-url
       type: string
       description: The git repository url
-    - name: branch
-      type: string
-      description: The branch or tag from the git repo-url location
-      default: master
     - name: revision
       description: The git reference that was checked out
-      default: ""
-    - name: image
+    - name: image-url
       type: string
       description: "The location where to push the image in the form of <server>/<namespace>/<repository>:<tag>"
+    - name: image-name
+      type: string
+      description: The name of the image for the application
     - name: source-dir
       type: string
       default: /source
@@ -28,9 +26,6 @@ spec:
     - name: tools-image
       type: string
       default: garagecatalyst/ibmcloud-dev:1.0.10
-  results:
-    - name: revision
-      description: The git reference that was checked out
   volumes:
     - name: source
       emptyDir: {}
@@ -41,48 +36,10 @@ spec:
       args:
         - -c
         - |
-          git clone $(params.repo-url) $(params.source-dir)
+          git clone $(params.git-url) $(params.source-dir)
           cd $(params.source-dir)
-          git checkout $(params.branch)
 
-          REVISION=$(params.revision)
-          if [ -z "${REVISION}" ]; then
-            REVISION=$(git rev-parse HEAD)
-          else
-            git reset --hard "${REVISION}"
-          fi
-
-          echo "REVISION: ${REVISION}"
-          echo -n "${REVISION}" | tee $(results.revision.path)
-
-          echo "IMAGE_NAME=$(basename $(git rev-parse --show-toplevel))" >> ./.env-config
-          echo "REVISION=${REVISION}" >> ./.env-config
-      volumeMounts:
-        - name: source
-          mountPath: $(params.source-dir)
-    - name: setup
-      image: $(params.js-image)
-      workingdir: $(params.source-dir)
-      command: ["/bin/bash"]
-      env:
-        - name: BRANCH
-          value: $(params.revision)
-      args:
-        - -c
-        - |
-          set -x
-          set +e
-
-          git fetch --unshallow
-          git fetch --tags
-          git tag -l
-
-          git checkout ${BRANCH}
-
-          echo "IMAGE_VERSION=$(git describe --abbrev=0 --tags)" > ./env-config
-          echo "IMAGE_NAME=$(basename -s .git `git config --get remote.origin.url` | tr '[:upper:]' '[:lower:]' | sed 's/_/-/g')" >> ./env-config
-
-          cat ./env-config
+          git reset --hard $(params.revision)
       volumeMounts:
         - name: source
           mountPath: $(params.source-dir)
@@ -118,6 +75,15 @@ spec:
           set -e
           set -x
 
+          IMAGE_URL=$(params.image-url)
+          IMAGE_NAME=$(params.image-name)
+
+          REGISTRY_URL=$(echo $IMAGE_URL | awk -F / '{print $1}')
+          REGISTRY_NAMESPACE=$(echo $IMAGE_URL | awk -F / '{print $2}')
+          IMAGE_TAG=$(echo $IMAGE_URL | awk -F / '{print $3}')
+          IMAGE_NAME=$(echo IMAGE_TAG | awk -F : '{print $1}')
+          IMAGE_VERSION=$(echo IMAGE_TAG | awk -F : '{print $2}')
+
           if [[ -z "${host}" ]] || [[ -z "${org}" ]] || [[ -z "${repo}" ]]; then
               echo "GitOps repo has not been configured. Skipping trigger step"
               exit 0
@@ -131,8 +97,6 @@ spec:
           if [[ -z "${branch}" ]]; then
               branch="master"
           fi
-
-          . ./env-config
 
           git config --global user.email "cloud-native-toolkit@example.com"
           git config --global user.name "Cloud Native Toolkit Pipeline"
