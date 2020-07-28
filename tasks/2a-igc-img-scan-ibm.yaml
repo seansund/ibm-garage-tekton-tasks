@@ -2,6 +2,11 @@ apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
   name: ibm-img-scan-ibm
+  annotations:
+    description: Checks the results for the Vulnerability Advisor scan if deploying images to IBM Container Registry
+    app.openshift.io/description: Checks the results for the Vulnerability Advisor scan if deploying images to IBM Container Registry
+    app.openshift.io/vcs-uri: https://github.com/IBM/ibm-garage-tekton-tasks
+    app.openshift.io/vcs-ref: master
   labels:
     version: 0.0.0 
 spec:
@@ -14,7 +19,7 @@ spec:
     - name: image-url
       type: string
       description: "The location where to push the image in the form of <server>/<namespace>/<repository>:<tag>"
-    - name: image-name
+    - name: app-name
       type: string
       description: The name of the application
     - name: perform-scan

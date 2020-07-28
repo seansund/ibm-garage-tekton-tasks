@@ -2,6 +2,11 @@ apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
   name: ibm-helm-package
+  annotations:
+    description: Publishes the helm chart to the helm repository using the version provided in the image-url
+    app.openshift.io/description: Publishes the helm chart to the helm repository using the version provided in the image-url
+    app.openshift.io/vcs-uri: https://github.com/IBM/ibm-garage-tekton-tasks
+    app.openshift.io/vcs-ref: master
   labels:
     version: 0.0.0
 spec:
@@ -14,7 +19,7 @@ spec:
     - name: image-url
       type: string
       description: "The location where to push the image in the form of <server>/<namespace>/<repository>:<tag>"
-    - name: image-name
+    - name: app-name
       type: string
       description: "The location where to push the image in the form of <server>/<namespace>/<repository>:<tag>"
       default: ""
@@ -46,7 +51,7 @@ spec:
           echo "REVISION: $(params.revision)"
           echo "SOURCE_DIR: $(params.source-dir)"
           echo "IMAGE_URL: $(params.image-url)"
-          echo "IMAGE_NAME: $(params.image-name)"
+          echo "IMAGE_NAME: $(params.app-name)"
       volumeMounts:
         - name: source
           mountPath: $(params.source-dir)

@@ -2,6 +2,11 @@ apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
   name: ibm-setup
+  annotations:
+    description: Sets up the pipeline environment and generates/normalizes a number of param values
+    app.openshift.io/description: Sets up the pipeline environment and generates/normalizes a number of param values
+    app.openshift.io/vcs-ref: master
+    app.openshift.io/vcs-uri: https://github.com/IBM/ibm-garage-tekton-tasks
   labels:
     version: 0.0.0
 spec:
@@ -14,7 +19,7 @@ spec:
     - name: image-url
       type: string
       description: "The location where to push the image in the form of <server>/<namespace>/<repository>:<tag>"
-    - name: image-name
+    - name: app-name
       type: string
       description: The name of the image/application that should be used for the pipeline
       default: ""
@@ -23,9 +28,11 @@ spec:
       description: The directory into which the git-repo should be cloned
       default: /source
   results:
+    - name: git-url
+      description: The git repository url
     - name: revision
       description: The git reference that was checked out
-    - name: image-name
+    - name: app-name
       description: The name of the image/application that should be used for the pipeline
     - name: image-url
       description: "The location where to push the image in the form of <server>/<namespace>/<repository>:<tag>"
@@ -59,7 +66,15 @@ spec:
       args:
         - -c
         - |
-          git clone $(params.git-url) $(params.source-dir)
+          set +x
+          GIT_URL=$(params.git-url)
+          if [[ -n "${GIT_AUTH_USER}" ]] && [[ -n "${GIT_AUTH_PWD}" ]]; then
+            echo "Git credentials provided. Using them to clone repo"
+            GIT_URL="https://${GIT_AUTH_USER}:${GIT_AUTH_PWD}@$(echo $(params.git-url) | awk -F 'https://' '{print $2}')"
+          fi
+
+          git clone ${GIT_URL} $(params.source-dir)
+
           cd $(params.source-dir)
           git checkout $(params.revision)
 
@@ -82,18 +97,20 @@ spec:
           REGISTRY_NAMESPACE=$(echo $IMAGE_URL | awk -F / '{print $2}')
           IMAGE_TAG=$(echo $IMAGE_URL | awk -F / '{print $3}')
 
-          IMAGE_NAME=$(params.image-name)
+          IMAGE_NAME=$(params.app-name)
           if [ -z $IMAGE_NAME ]; then
             IMAGE_NAME=$(echo $IMAGE_TAG | awk -F : '{print $1}')
           fi
 
           echo "IMAGE_NAME: ${IMAGE_NAME}"
-          echo -n "${IMAGE_NAME}" | tee $(results.image-name.path)
+          echo -n "${IMAGE_NAME}" | tee $(results.app-name.path)
 
           IMAGE_VERSION="${REVISION}"
 
           IMAGE_URL="${REGISTRY_URL}/${REGISTRY_NAMESPACE}/${IMAGE_NAME}:${IMAGE_VERSION}"
           echo -n "${IMAGE_URL}" | tee $(results.image-url.path)
+
+          echo -n "${GIT_URL}" | tee $(results.git-url.path)
 
           echo "REGISTRY_URL: $REGISTRY_URL"
           echo "REGISTRY_NAMESPACE: $REGISTRY_NAMESPACE"

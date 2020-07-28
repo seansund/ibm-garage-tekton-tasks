@@ -2,6 +2,13 @@ apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
   name: ibm-liberty-server-check
+  annotations:
+    description: Performs a health check on the deployed liberty server
+    app.openshift.io/description: Performs a health check on the deployed liberty server
+    app.openshift.io/vcs-uri: https://github.com/IBM/ibm-garage-tekton-tasks
+    app.openshift.io/vcs-ref: master
+  labels:
+    version: 0.0.0
 spec:
   params:
     - name: git-url
@@ -12,7 +19,7 @@ spec:
     - name: image-url
       type: string
       description: "The location where to push the image in the form of <server>/<namespace>/<repository>:<tag>"
-    - name: image-name
+    - name: app-name
       type: string
       description: The name of the image for the application
     - name: source-dir
@@ -43,7 +50,7 @@ spec:
           echo "REVISION: $(params.revision)"
           echo "SOURCE_DIR: $(params.source-dir)"
           echo "IMAGE_URL: $(params.image-url)"
-          echo "IMAGE_NAME: $(params.image-name)"
+          echo "IMAGE_NAME: $(params.app-name)"
       volumeMounts:
         - name: source
           mountPath: $(params.source-dir)
@@ -64,7 +71,7 @@ spec:
         - |
           ENVIRONMENT_NAME="${NAMESPACE}"
 
-          IMAGE_NAME=$(params.image-name)
+          IMAGE_NAME=$(params.app-name)
 
           if [[ "${CLUSTER_TYPE}" == "openshift" ]]; then
               ROUTE_HOST=$(kubectl get route/${IMAGE_NAME} --namespace ${ENVIRONMENT_NAME} --output=jsonpath='{ .spec.host }')

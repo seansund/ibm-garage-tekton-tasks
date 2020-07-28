@@ -2,6 +2,11 @@ apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
   name: ibm-gradle-pact-verify
+  annotations:
+    description: Performs pact verification on the service provider
+    app.openshift.io/description: Performs pact verification on the service provider
+    app.openshift.io/vcs-uri: https://github.com/IBM/ibm-garage-tekton-tasks
+    app.openshift.io/vcs-ref: master
   labels:
     version: 0.0.0
 spec:
@@ -15,7 +20,7 @@ spec:
       type: string
       description: "The location where to push the image in the form of <server>/<namespace>/<repository>:<tag>"
       default: ""
-    - name: image-name
+    - name: app-name
       type: string
       description: The name of the image name for the application
     - name: source-dir
@@ -50,7 +55,7 @@ spec:
           echo "REVISION: $(params.revision)"
           echo "SOURCE_DIR: $(params.source-dir)"
           echo "IMAGE_URL: $(params.image-url)"
-          echo "IMAGE_NAME: $(params.image-name)"
+          echo "IMAGE_NAME: $(params.app-name)"
       volumeMounts:
         - name: source
           mountPath: $(params.source-dir)
@@ -75,7 +80,7 @@ spec:
           fi
 
           PROTOCOL=http
-          HOST=$(params.image-name)
+          HOST=$(params.app-name)
           PORT=80
 
           set -x

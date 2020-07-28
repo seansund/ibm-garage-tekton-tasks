@@ -2,6 +2,11 @@ apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
   name: ibm-deploy
+  annotations:
+    description: Deploys the application to the CI environment for verification using the provided helm chart
+    app.openshift.io/description: Deploys the application to the CI environment for verification using the provided helm chart
+    app.openshift.io/vcs-uri: https://github.com/IBM/ibm-garage-tekton-tasks
+    app.openshift.io/vcs-ref: master
   labels:
     version: 0.0.0
 spec:
@@ -15,7 +20,7 @@ spec:
       type: string
       description: "The location where to push the image in the form of <server>/<namespace>/<repository>:<tag>"
       default: ""
-    - name: image-name
+    - name: app-name
       type: string
       description: The name of the application image
       default: ""
@@ -47,7 +52,7 @@ spec:
           echo "REVISION: $(params.revision)"
           echo "SOURCE_DIR: $(params.source-dir)"
           echo "IMAGE_URL: $(params.image-url)"
-          echo "IMAGE_NAME: $(params.image-name)"
+          echo "IMAGE_NAME: $(params.app-name)"
       volumeMounts:
         - name: source
           mountPath: $(params.source-dir)
@@ -74,7 +79,7 @@ spec:
 
           REPO_URL=$(params.git-url)
           IMAGE_URL=$(params.image-url)
-          IMAGE_NAME=$(params.image-name)
+          IMAGE_NAME=$(params.app-name)
           IMAGE_VERSION=$(params.revision)
 
           REGISTRY_URL=$(echo $IMAGE_URL | awk -F / '{print $1}')

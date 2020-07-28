@@ -2,6 +2,11 @@ apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
   name: ibm-build-tag-push
+  annotations:
+    description: Executes logic to build, tag and push a container image using the intermediate sha tag to the image-url
+    app.openshift.io/description: Executes logic to build, tag and push a container image using the intermediate sha tag to the image-url
+    app.openshift.io/vcs-uri: https://github.com/IBM/ibm-garage-tekton-tasks
+    app.openshift.io/vcs-ref: master
   labels:
     version: 0.0.0
 spec:
@@ -15,7 +20,7 @@ spec:
       type: string
       description: "The location where to push the image in the form of <server>/<namespace>/<repository>:<tag>"
       default: ""
-    - name: image-name
+    - name: app-name
       type: string
       description: The name of the image/application that should be used for the pipeline
       default: ""
@@ -61,7 +66,7 @@ spec:
           echo "REVISION: $(params.revision)"
           echo "SOURCE_DIR: $(params.source-dir)"
           echo "IMAGE_URL: $(params.image-url)"
-          echo "IMAGE_NAME: $(params.image-name)"
+          echo "IMAGE_NAME: $(params.app-name)"
       volumeMounts:
         - name: source
           mountPath: $(params.source-dir)
@@ -84,7 +89,7 @@ spec:
           echo "Building image: ${APP_IMAGE}"
 
           buildah bud --tls-verify=$(params.TLSVERIFY) --format=docker -f $(params.DOCKERFILE) -t ${APP_IMAGE}  $(params.CONTEXT)
-          if [[ -n "${REGISTRY_USER}" ]] && [[ -n "${REGISTRY_PASSWORD}" ]]; then
+          if [[ -n "${REGISTRY_USER}" ]] && [[ -n "${REGISTRY_PASSWORD}" ]] && [[ "${REGISTRY_URL}" != "image-registry.openshift-image-registry.svc:5000" ]]; then; then
             buildah login -u "${REGISTRY_USER}" -p "${REGISTRY_PASSWORD}" "${REGISTRY_URL}"
           fi
           buildah push --tls-verify=$(params.TLSVERIFY) "${APP_IMAGE}" "docker://${APP_IMAGE}"

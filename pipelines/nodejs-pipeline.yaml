@@ -16,7 +16,7 @@ spec:
     - name: image-url
       description: The url for the resulting image
       type: string
-    - name: image-name
+    - name: app-name
       description: The url for the resulting image
       type: string
       default: ""
@@ -39,8 +39,8 @@ spec:
           value: $(params.revision)
         - name: image-url
           value: $(params.image-url):$(params.image-tag)
-        - name: image-name
-          value: $(params.image-name)
+        - name: app-name
+          value: $(params.app-name)
     - name: test
       taskRef:
         name: ibm-nodejs-test
@@ -48,15 +48,15 @@ spec:
         - setup
       params:
         - name: git-url
-          value: $(params.git-url)
+          value: $(tasks.setup.results.git-url)
         - name: revision
           value: $(tasks.setup.results.revision)
         - name: source-dir
           value: $(tasks.setup.results.source-dir)
         - name: image-url
           value: $(tasks.setup.results.image-url)
-        - name: image-name
-          value: $(tasks.setup.results.image-name)
+        - name: app-name
+          value: $(tasks.setup.results.app-name)
     - name: build
       taskRef:
         name: ibm-build-tag-push
@@ -64,13 +64,13 @@ spec:
        - test
       params:
         - name: git-url
-          value: $(params.git-url)
+          value: $(tasks.setup.results.git-url)
         - name: revision
           value: $(tasks.setup.results.revision)
         - name: image-url
           value: $(tasks.setup.results.image-url)
-        - name: image-name
-          value: $(tasks.setup.results.image-name)
+        - name: app-name
+          value: $(tasks.setup.results.app-name)
         - name: source-dir
           value: $(tasks.setup.results.source-dir)
     - name: deploy
@@ -80,13 +80,13 @@ spec:
        - build
       params:
         - name: git-url
-          value: $(params.git-url)
+          value: $(tasks.setup.results.git-url)
         - name: revision
           value: $(tasks.setup.results.revision)
         - name: image-url
           value: $(tasks.setup.results.image-url)
-        - name: image-name
-          value: $(tasks.setup.results.image-name)
+        - name: app-name
+          value: $(tasks.setup.results.app-name)
         - name: source-dir
           value: $(tasks.setup.results.source-dir)
     - name: health
@@ -96,13 +96,13 @@ spec:
        - deploy
       params:
         - name: git-url
-          value: $(params.git-url)
+          value: $(tasks.setup.results.git-url)
         - name: revision
           value: $(tasks.setup.results.revision)
         - name: image-url
           value: $(tasks.setup.results.image-url)
-        - name: image-name
-          value: $(tasks.setup.results.image-name)
+        - name: app-name
+          value: $(tasks.setup.results.app-name)
         - name: source-dir
           value: $(tasks.setup.results.source-dir)
     - name: img-release
@@ -112,13 +112,13 @@ spec:
         - health
       params:
         - name: git-url
-          value: $(params.git-url)
+          value: $(tasks.setup.results.git-url)
         - name: revision
           value: $(tasks.setup.results.revision)
         - name: image-url
           value: $(tasks.setup.results.image-url)
-        - name: image-name
-          value: $(tasks.setup.results.image-name)
+        - name: app-name
+          value: $(tasks.setup.results.app-name)
         - name: source-dir
           value: $(tasks.setup.results.source-dir)
     - name: scan
@@ -128,13 +128,13 @@ spec:
         - img-release
       params:
         - name: git-url
-          value: $(params.git-url)
+          value: $(tasks.setup.results.git-url)
         - name: revision
           value: $(tasks.setup.results.revision)
         - name: image-url
           value: $(tasks.build.results.image-url)
-        - name: image-name
-          value: $(tasks.setup.results.image-name)
+        - name: app-name
+          value: $(tasks.setup.results.app-name)
         - name: source-dir
           value: $(tasks.setup.results.source-dir)
         - name: perform-scan
@@ -146,13 +146,13 @@ spec:
         - scan
       params:
         - name: git-url
-          value: $(params.git-url)
+          value: $(tasks.setup.results.git-url)
         - name: revision
           value: $(tasks.setup.results.revision)
         - name: image-url
           value: $(tasks.img-release.results.image-url)
-        - name: image-name
-          value: $(tasks.setup.results.image-name)
+        - name: app-name
+          value: $(tasks.setup.results.app-name)
         - name: source-dir
           value: $(tasks.setup.results.source-dir)
     - name: gitops
@@ -162,12 +162,12 @@ spec:
        - helm-release
       params:
         - name: git-url
-          value: $(params.git-url)
+          value: $(tasks.setup.results.git-url)
         - name: revision
           value: $(tasks.setup.results.revision)
         - name: image-url
           value: $(tasks.img-release.results.image-url)
-        - name: image-name
-          value: $(tasks.setup.results.image-name)
+        - name: app-name
+          value: $(tasks.setup.results.app-name)
         - name: source-dir
           value: $(tasks.setup.results.source-dir)
