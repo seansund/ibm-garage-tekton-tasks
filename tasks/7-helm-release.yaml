@@ -32,6 +32,9 @@ spec:
     - name: tools-image
       type: string
       default: garagecatalyst/ibmcloud-dev:1.0.10
+  results:
+    - name: helm-url
+      description: The url of the helm repository
   volumes:
     - name: source
       emptyDir: {}
@@ -248,6 +251,8 @@ spec:
 
           # Persist the Helm Chart in the helm repo for us by ArgoCD
           curl -u${HELM_USER}:${HELM_PASSWORD} -i -vvv -T index.yaml "${HELM_URL}/${REGISTRY_NAMESPACE}/index.yaml"
+
+          echo -n "${HELM_URL}/${REGISTRY_NAMESPACE}" | tee $(results.helm-url.path)
       volumeMounts:
         - name: source
           mountPath: $(params.source-dir)

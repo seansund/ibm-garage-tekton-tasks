@@ -165,6 +165,8 @@ spec:
       params:
         - name: git-url
           value: $(tasks.setup.results.git-url)
+        - name: helm-url
+          value: $(tasks.helm-release.results.helm-url)
         - name: revision
           value: $(tasks.setup.results.revision)
         - name: image-url
