@@ -220,11 +220,14 @@ spec:
             REGISTRY_RELEASE_NAMESPACE=${NAMESPACE}
           fi
         fi
+
         if [[ -z "${REGISTRY_RELEASE_NAMESPACE}" ]]; then
           # Assume current k8s namespace
-          REGISTRY_RELEASE_NAMESPACE="${NAMESPACE}"
+          REGISTRY_RELEASE_URL="${REGISTRY_RELEASE_SERVER}/${REGISTRY_REPOSITORY}"
+        else
+          REGISTRY_RELEASE_URL="${REGISTRY_RELEASE_SERVER}/${REGISTRY_RELEASE_NAMESPACE}/${REGISTRY_REPOSITORY}"
         fi
-        REGISTRY_RELEASE_URL="${REGISTRY_RELEASE_SERVER}/${REGISTRY_RELEASE_NAMESPACE}/${REGISTRY_REPOSITORY}"
+
         echo -n "${REGISTRY_RELEASE_URL}">$(results.image-release.path)
         for f in /tekton/results/*; do echo "results.$(basename $f)=$(cat $f)"; done
 
